@@ -8,7 +8,10 @@ Live/beta facts that must be verified before wiring the live integrations. Statu
 | 2 | PancakeSwap router address + ABI (BSC) | TODO | Confirm version (v2/v3/smart router). Pull ABI into `contracts/abi/`. |
 | 3 | ERC-8004 registry address + ABI (testnet + mainnet) | TODO | From `bnb-chain/bnbagent-sdk`. Confirm register + write-record interface. |
 | 4 | BSC perps venue + contracts | TODO | If unclear/risky, default to spot-only and skip perps. |
-| 5 | TWAK signing flow | TODO | Install `curl -fsSL https://agent-kit.trustwallet.com/install.sh | bash`; Access ID/HMAC from portal.trustwallet.com. **Decision: Option B** — sign via TWAK CLI subprocess (native ethers signing is the fallback). Must prove TWAK signs AND broadcasts a real PancakeSwap swap on BSC testnet. |
+| 5 | TWAK signing flow | RESOLVED (creds) | CLI is the npm pkg `@trustwallet/cli` (v0.19.1, binary `twak`, needs Node ≥22.14). Creds verified working: `twak price BNB` made a successful authenticated call (raw hand-rolled HMAC got 403 — use the CLI/SDK, not raw signing). Env vars: `TWAK_ACCESS_ID`/`TWAK_HMAC_SECRET`. CLI exposes `swap` (Option-B execution), `erc8004` (our ledger), `wallet`, and `compete` (hackathon register/status). Agent wallet created headless (`--no-keychain`, password in `.env` `TWAK_WALLET_PASSWORD`). **Open issue:** CLI throws `could not register testnet node for smartchain-testnet (cid97)` — a v0.19.1 proxy bug; need a workaround for BSC-testnet swaps (mainnet smartchain, native-ethers fallback, or CLI upgrade). Swap signing on testnet still to be proven end-to-end. |
+
+### TWAK API signing (for reference, if ever calling raw)
+Base `https://tws.trustwallet.com`. Sign `METHOD+PATH+QUERY+ACCESS_ID+NONCE+DATE` (no separators) with HMAC-SHA256 → base64. Headers: `X-TW-Credential`, `X-TW-Nonce`, `X-TW-Date`, `Authorization`. Prefer the CLI/SDK which sign correctly.
 | 6 | Exact drawdown cap, min trade count, starting capital | TODO | From DoraHacks rules / builder Telegram. Set in `config.json` (currently: 25% hard stop vs ~30% cap, minTradesTarget 30, startingCapitalUsd 1000 — confirm). |
 
 ## CMC MCP tools (12) → MarketState mapping
@@ -25,9 +28,10 @@ The 12 tools: `get_crypto_quotes_latest`, `get_crypto_technical_analysis`, `get_
 **Credit budget note:** Basic plan = 15,000 credits/month, 50 req/min. ~4 tool calls/tick × 5-min ticks ≈ 1,150 calls/day → tune tick interval / cache per-tick, and route ≥1 call via x402 (pay-per-request, also satisfies the x402-usage requirement).
 
 ## Credentials / wallet (keys live in .env, gitignored)
-- **CMC API key:** validated against `/v1/key/info` — Basic plan, 15,000 credits/month, 50 req/min.
-- **TWAK:** Access ID + HMAC secret stored in `.env`.
-- **Agent testnet wallet (BSC chainId 97):** `0x1d8436e32eF7C7eB460Ff9c15aAe5F80ab2056Bc` — fund with tBNB from the BNB Chain faucet.
+- **CMC API key:** validated against `/v1/key/info` — Basic plan, 15,000 credits/month, 50 req/min. Live `CmcSensor` built + verified (real BNB price/regime/technicals).
+- **TWAK:** Access ID + HMAC secret stored in `.env`, verified working via CLI.
+- **Agent wallet (PRIMARY, TWAK-managed, BSC chainId 97 + mainnet 56):** `0x3864b8A47B187fF2829BFf2f74D772811F727Cf7` — **this is the address to fund with tBNB.**
+- **Fallback wallet (native ethers signer only):** `0x1d8436e32eF7C7eB460Ff9c15aAe5F80ab2056Bc` (key in `.env` `FALLBACK_PRIVATE_KEY`).
 
 ## Decisions locked
 - **Core concept:** deterministic rule-based FSM agent (no LLM in decision path).
