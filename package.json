@@ -7,7 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning src/index.ts",
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/index.ts",
+    "sense:probe": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/sense/probe.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

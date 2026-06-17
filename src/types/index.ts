@@ -60,6 +60,7 @@ export interface MarketState {
   liquidityUsd: number;
   technicals: { momentum: number; trend: number };
   crossAssetPressure: number;
+  price: number;
   stale: boolean;
 }
 
