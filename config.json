@@ -2,6 +2,7 @@
   "mode": "paper",
   "tickIntervalSeconds": 300,
   "staleMarketSeconds": 900,
+  "startingCapitalUsd": 1000,
   "risk": {
     "maxExposurePct": 0.80,
     "maxPositionPctPerToken": 0.25,
