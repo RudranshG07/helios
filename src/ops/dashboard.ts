@@ -8,6 +8,11 @@ export function renderDashboard(s: Snapshot): string {
   const tickAge = s.lastTickUnix ? `${Math.max(0, Math.floor(Date.now() / 1000) - s.lastTickUnix)}s ago` : "never";
   const scanBase = "https://bscscan.com/address/";
 
+  const m = s.metrics;
+  const ret = (m.totalReturnPct * 100).toFixed(2);
+  const retColor = m.totalReturnPct >= 0 ? "#27ae60" : "#c0392b";
+  const pf = Number.isFinite(m.profitFactor) ? m.profitFactor.toFixed(2) : "∞";
+
   const positions = s.positions
     .map((p) => `<tr><td>${esc(p.token)}</td><td>${p.qtyBase.toFixed(6)}</td><td>$${p.markPxUsd.toFixed(2)}</td><td>$${(p.qtyBase * p.markPxUsd).toFixed(2)}</td></tr>`)
     .join("");
@@ -36,11 +41,17 @@ export function renderDashboard(s: Snapshot): string {
   <div class="card"><div class="label">Equity</div><div class="value">$${s.equityUsd.toFixed(2)}</div></div>
   <div class="card"><div class="label">High-water</div><div class="value">$${s.highWaterUsd.toFixed(2)}</div></div>
   <div class="card"><div class="label">Drawdown</div><div class="value" style="color:${ddColor}">${dd}%</div></div>
+  <div class="card"><div class="label">Total return</div><div class="value" style="color:${retColor}">${ret}%</div></div>
+  <div class="card"><div class="label">Realized PnL</div><div class="value">$${m.realizedPnlUsd.toFixed(2)}</div></div>
+  <div class="card"><div class="label">Win rate</div><div class="value">${(m.winRate * 100).toFixed(0)}%</div></div>
+  <div class="card"><div class="label">Profit factor</div><div class="value">${pf}</div></div>
+  <div class="card"><div class="label">Max drawdown</div><div class="value">${(m.maxDrawdownPct * 100).toFixed(2)}%</div></div>
   <div class="card"><div class="label">Trades</div><div class="value">${s.tradeCount}</div></div>
   <div class="card"><div class="label">Regime</div><div class="value">${esc(regime)}</div></div>
   <div class="card"><div class="label">Last tick</div><div class="value">${esc(tickAge)}</div></div>
 </div>
 <p>Agent wallet: ${s.walletAddress ? `<a href="${scanBase}${esc(s.walletAddress)}">${esc(s.walletAddress)}</a>` : "—"} · ERC-8004 identity: ${s.agentId ? esc(s.agentId) : "not registered"}</p>
+<p>Verifiable risk policy: <code>${esc(s.riskPolicyHash)}</code> · Paid signal feed: <code>GET /signal</code> (x402, $0.01 USDC/Base)</p>
 <h3>Positions</h3>
 <table><thead><tr><th>Token</th><th>Qty</th><th>Mark</th><th>Value</th></tr></thead><tbody>${positions || '<tr><td colspan="4">none</td></tr>'}</tbody></table>
 <h3>Recent ledger</h3>

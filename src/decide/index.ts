@@ -1,16 +1,34 @@
-import type { MarketState, Portfolio, RiskConfig, Trade, TradePlan } from "../types/index.ts";
+import type { DecideContext, MarketState, Portfolio, RiskConfig, Trade, TradePlan } from "../types/index.ts";
 
-export function decide(state: MarketState, portfolio: Portfolio, cfg: RiskConfig, secondsSinceLastTrade: number): TradePlan {
+export function decide(state: MarketState, portfolio: Portfolio, cfg: RiskConfig, ctx: DecideContext): TradePlan {
   if (state.stale || state.riskFlags.length > 0) return flatten(state, portfolio, cfg);
 
-  const target = targetExposure(state, cfg);
+  const target = targetExposure(state, cfg, ctx.volScale);
   const plan = planTowardTarget(target, state, portfolio, cfg);
 
   if (plan.trades.length === 0) {
-    const nudge = turnoverNudge(state, portfolio, cfg, secondsSinceLastTrade);
+    const nudge = turnoverNudge(state, portfolio, cfg, ctx.secondsSinceLastTrade);
     if (nudge) plan.trades.push(nudge);
   }
   return plan;
+}
+
+function conviction(state: MarketState, cfg: RiskConfig): number {
+  const t = state.technicals;
+  const trending = Math.abs(t.trend) >= cfg.trendThreshold;
+
+  let score = trending
+    ? 0.5 * t.trend + 0.3 * t.momentum + 0.2 * state.crossAssetPressure
+    : -0.6 * t.momentum + 0.2 * state.crossAssetPressure;
+
+  if (state.regime === "risk-on") score += 0.1;
+  if (state.regime === "risk-off") score = Math.min(score, 0);
+  return clamp(score, -1, 1);
+}
+
+function targetExposure(state: MarketState, cfg: RiskConfig, volScale: number): number {
+  const base = Math.max(0, conviction(state, cfg)) * cfg.maxExposurePct;
+  return clamp(base * volScale, 0, cfg.maxExposurePct);
 }
 
 function turnoverNudge(state: MarketState, portfolio: Portfolio, cfg: RiskConfig, secondsSinceLastTrade: number): Trade | null {
@@ -39,19 +57,6 @@ function nudgeTrade(token: string, side: "buy" | "sell", sizeUsd: number, state:
   };
 }
 
-function targetExposure(state: MarketState, cfg: RiskConfig): number {
-  switch (state.regime) {
-    case "risk-off":
-      return 0;
-    case "neutral":
-      return 0.2 * cfg.maxExposurePct;
-    case "risk-on": {
-      const strength = clamp((state.technicals.momentum + state.technicals.trend + state.crossAssetPressure) / 3, 0, 1);
-      return strength * cfg.maxExposurePct;
-    }
-  }
-}
-
 function planTowardTarget(target: number, state: MarketState, portfolio: Portfolio, cfg: RiskConfig): TradePlan {
   const primary = cfg.allowedTokens.find((t) => t !== cfg.stableAsset)!;
   const currentExposure = nonStableExposure(portfolio, cfg.stableAsset);
@@ -72,9 +77,13 @@ function planTowardTarget(target: number, state: MarketState, portfolio: Portfol
   return { targetExposurePct: target, trades: [trade] };
 }
 
+export function flattenPlan(state: MarketState, portfolio: Portfolio, cfg: RiskConfig): TradePlan {
+  return flatten(state, portfolio, cfg);
+}
+
 function flatten(state: MarketState, portfolio: Portfolio, cfg: RiskConfig): TradePlan {
   const trades = portfolio.positions
-    .filter((p) => p.token !== cfg.stableAsset && p.qtyBase > 0)
+    .filter((p) => p.token !== cfg.stableAsset && p.qtyBase * p.markPxUsd >= 1)
     .map<Trade>((p) => ({
       token: p.token,
       side: "sell",

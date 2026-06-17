@@ -15,6 +15,7 @@
     "maxSlippageBps": 80,
     "perTradeCostBps": 30,
     "cooldownMinutes": 15,
+    "trendThreshold": 0.3,
     "allowedTokens": ["WBNB", "USDT"],
     "stableAsset": "USDT",
     "killSwitch": false

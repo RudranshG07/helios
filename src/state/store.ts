@@ -22,7 +22,7 @@ export class Store {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS positions (token TEXT PRIMARY KEY, qtyBase REAL NOT NULL, entryPxUsd REAL NOT NULL, markPxUsd REAL NOT NULL);
-      CREATE TABLE IF NOT EXISTS fills (clientOrderId TEXT PRIMARY KEY, ts INTEGER NOT NULL, token TEXT NOT NULL, stableDelta REAL NOT NULL, tokenDelta REAL NOT NULL, notionalUsd REAL NOT NULL, txHash TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS fills (clientOrderId TEXT PRIMARY KEY, ts INTEGER NOT NULL, token TEXT NOT NULL, stableDelta REAL NOT NULL, tokenDelta REAL NOT NULL, notionalUsd REAL NOT NULL, realizedPnl REAL NOT NULL DEFAULT 0, txHash TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, regime TEXT NOT NULL, action TEXT NOT NULL, sizeUsd REAL NOT NULL, realizedPnl REAL NOT NULL, stateHash TEXT NOT NULL);
     `);
   }
@@ -30,9 +30,46 @@ export class Store {
   initialize(startingCapitalUsd: number): void {
     if (this.getNumber("initialized") === 1) return;
     this.upsertPosition(this.stable, startingCapitalUsd, 1, 1);
+    this.setNumber("startingCapitalUsd", startingCapitalUsd);
     this.setNumber("highWaterUsd", startingCapitalUsd);
+    this.setNumber("maxDrawdownPct", 0);
     this.setNumber("tradeCount", 0);
     this.setNumber("initialized", 1);
+  }
+
+  updateMaxDrawdown(): void {
+    const p = this.getPortfolio();
+    if (p.highWaterUsd <= 0) return;
+    const dd = Math.max(0, (p.highWaterUsd - p.equityUsd) / p.highWaterUsd);
+    if (dd > (this.getNumber("maxDrawdownPct") ?? 0)) this.setNumber("maxDrawdownPct", dd);
+  }
+
+  metrics(): {
+    startingCapitalUsd: number;
+    equityUsd: number;
+    totalReturnPct: number;
+    realizedPnlUsd: number;
+    maxDrawdownPct: number;
+    tradeCount: number;
+    winRate: number;
+    profitFactor: number;
+  } {
+    const start = this.getNumber("startingCapitalUsd") ?? 0;
+    const equity = this.equity();
+    const realized = this.db.prepare("SELECT realizedPnl FROM fills WHERE realizedPnl != 0").all() as unknown as { realizedPnl: number }[];
+    const wins = realized.filter((r) => r.realizedPnl > 0);
+    const grossProfit = wins.reduce((s, r) => s + r.realizedPnl, 0);
+    const grossLoss = realized.filter((r) => r.realizedPnl < 0).reduce((s, r) => s - r.realizedPnl, 0);
+    return {
+      startingCapitalUsd: start,
+      equityUsd: equity,
+      totalReturnPct: start > 0 ? (equity - start) / start : 0,
+      realizedPnlUsd: this.realizedPnl(),
+      maxDrawdownPct: this.getNumber("maxDrawdownPct") ?? 0,
+      tradeCount: this.getNumber("tradeCount") ?? 0,
+      winRate: realized.length > 0 ? wins.length / realized.length : 0,
+      profitFactor: grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0,
+    };
   }
 
   markPrices(priceByToken: Record<string, number>): void {
@@ -45,6 +82,25 @@ export class Store {
   refreshHighWater(): void {
     const equity = this.equity();
     if (equity > (this.getNumber("highWaterUsd") ?? 0)) this.setNumber("highWaterUsd", equity);
+  }
+
+  updateVolatility(price: number): void {
+    const last = this.getNumber("volLastPrice");
+    if (last && last > 0 && price > 0) {
+      const ret = Math.abs(Math.log(price / last));
+      const fast = this.getNumber("volFast") ?? ret;
+      const slow = this.getNumber("volSlow") ?? ret;
+      this.setNumber("volFast", 0.2 * ret + 0.8 * fast);
+      this.setNumber("volSlow", 0.02 * ret + 0.98 * slow);
+    }
+    this.setNumber("volLastPrice", price);
+  }
+
+  volScale(): number {
+    const fast = this.getNumber("volFast");
+    const slow = this.getNumber("volSlow");
+    if (!fast || !slow || fast <= 0) return 1;
+    return Math.max(0.3, Math.min(1.5, slow / fast));
   }
 
   getPortfolio(): Portfolio {
@@ -60,16 +116,37 @@ export class Store {
     return this.db.prepare("SELECT 1 FROM fills WHERE clientOrderId = ?").get(clientOrderId) !== undefined;
   }
 
-  applyFill(fill: Fill, ts: number, clientOrderId: string): void {
+  applyFill(fill: Fill, ts: number, clientOrderId: string): number {
+    let realizedPnl = 0;
+    if (fill.tokenDelta < 0) {
+      const entry = this.positionEntry(fill.token);
+      const qty = Math.abs(fill.tokenDelta);
+      if (entry !== undefined && qty > 0) realizedPnl = (fill.notionalUsd / qty - entry) * qty;
+    }
+
     this.db
-      .prepare("INSERT OR IGNORE INTO fills (clientOrderId, ts, token, stableDelta, tokenDelta, notionalUsd, txHash) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .run(clientOrderId, ts, fill.token, fill.stableDelta, fill.tokenDelta, fill.notionalUsd, fill.txHash);
+      .prepare("INSERT OR IGNORE INTO fills (clientOrderId, ts, token, stableDelta, tokenDelta, notionalUsd, realizedPnl, txHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(clientOrderId, ts, fill.token, fill.stableDelta, fill.tokenDelta, fill.notionalUsd, realizedPnl, fill.txHash);
 
     this.addToPosition(this.stable, fill.stableDelta, 1);
     const tokenPx = Math.abs(fill.tokenDelta) > 0 ? fill.notionalUsd / Math.abs(fill.tokenDelta) : 0;
     this.addToPosition(fill.token, fill.tokenDelta, tokenPx);
 
     this.setNumber("tradeCount", (this.getNumber("tradeCount") ?? 0) + 1);
+    this.setNumber("realizedPnlUsd", (this.getNumber("realizedPnlUsd") ?? 0) + realizedPnl);
+    return realizedPnl;
+  }
+
+  realizedPnl(): number {
+    return this.getNumber("realizedPnlUsd") ?? 0;
+  }
+
+  killActive(): boolean {
+    return this.getNumber("killSwitch") === 1;
+  }
+
+  setKill(on: boolean): void {
+    this.setNumber("killSwitch", on ? 1 : 0);
   }
 
   lastTradeMap(): Record<string, number> {
@@ -110,6 +187,11 @@ export class Store {
 
   private equity(): number {
     return this.allPositions().reduce((sum, p) => sum + p.qtyBase * p.markPxUsd, 0);
+  }
+
+  private positionEntry(token: string): number | undefined {
+    const row = this.db.prepare("SELECT entryPxUsd FROM positions WHERE token = ?").get(token) as unknown as { entryPxUsd: number } | undefined;
+    return row?.entryPxUsd;
   }
 
   private allPositions(): Position[] {

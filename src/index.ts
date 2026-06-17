@@ -2,12 +2,13 @@ import { createHash } from "node:crypto";
 import { loadConfig } from "./config/index.ts";
 import { Store } from "./state/store.ts";
 import { createSensor, type Sensor } from "./sense/index.ts";
-import { decide } from "./decide/index.ts";
+import { decide, flattenPlan } from "./decide/index.ts";
 import { evaluate } from "./risk/client.ts";
 import { createExecutor, type Executor } from "./execute/index.ts";
 import { createRecorder, type Recorder } from "./record/index.ts";
 import { OpsServer } from "./ops/health.ts";
 import { Alerter } from "./ops/alerts.ts";
+import { riskPolicyHash } from "./util/policy.ts";
 import { errorLog, log } from "./util/log.ts";
 import type { Config, EvalRequest, MarketState } from "./types/index.ts";
 
@@ -19,7 +20,7 @@ async function main(): Promise<void> {
   const sensor = createSensor(cfg);
   const executor = createExecutor(cfg);
   const recorder = createRecorder(cfg, store);
-  const ops = new OpsServer(store, cfg.ops.healthPort);
+  const ops = new OpsServer(store, cfg.ops.healthPort, riskPolicyHash(cfg.risk));
   ops.start();
   const alerter = new Alerter(process.env.ALERT_WEBHOOK_URL ?? cfg.ops.alertWebhookUrl);
 
@@ -69,17 +70,21 @@ async function tick(
   }
 
   store.markPrices({ [primary]: state.price });
+  store.updateVolatility(state.price);
   store.refreshHighWater();
+  store.updateMaxDrawdown();
   const portfolio = store.getPortfolio();
 
   const lastFill = store.lastFillUnix();
   const secondsSinceLastTrade = lastFill > 0 ? now - lastFill : Number.MAX_SAFE_INTEGER;
-  const plan = decide(state, portfolio, cfg.risk, secondsSinceLastTrade);
+  const volScale = store.volScale();
+  const risk = store.killActive() ? { ...cfg.risk, killSwitch: true } : cfg.risk;
+  const plan = decide(state, portfolio, risk, { secondsSinceLastTrade, volScale });
   const req: EvalRequest = {
     nowUnix: now,
     portfolio,
     plan,
-    config: cfg.risk,
+    config: risk,
     lastTrade: store.lastTradeMap(),
   };
   const verdict = await evaluate(cfg, req);
@@ -91,23 +96,41 @@ async function tick(
     await alerter.send("engine-down", "risk engine unreachable — no trades executed");
   }
 
-  for (const trade of verdict.approved) {
+  const toExecute = verdict.flatten ? flattenPlan(state, portfolio, risk).trades : verdict.approved;
+  for (const trade of toExecute) {
     if (store.alreadyFilled(trade.clientOrderId)) continue;
-    const fill = await executor.execute(trade, state.price);
-    store.applyFill(fill, now, trade.clientOrderId);
-    await recorder.record({
-      ts: now,
-      regime: state.regime,
-      action: `${trade.side} ${trade.token}`,
-      sizeUsd: fill.notionalUsd,
-      realizedPnl: 0,
-      stateHash: hashState(state),
-    });
+    try {
+      const fill = await executor.execute(trade, state.price);
+      const realizedPnl = store.applyFill(fill, now, trade.clientOrderId);
+      await recorder.record({
+        ts: now,
+        regime: state.regime,
+        action: `${trade.side} ${trade.token}`,
+        sizeUsd: fill.notionalUsd,
+        realizedPnl,
+        stateHash: hashState(state),
+      });
+    } catch (err) {
+      errorLog("trade failed", err, { clientOrderId: trade.clientOrderId });
+      await alerter.send("trade-error", `trade ${trade.clientOrderId} failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   store.markPrices({ [primary]: state.price });
   store.refreshHighWater();
+  store.updateMaxDrawdown();
   const after = store.getPortfolio();
+
+  ops.setSignal({
+    ts: state.ts,
+    regime: state.regime,
+    technicals: state.technicals,
+    crossAssetPressure: state.crossAssetPressure,
+    price: state.price,
+    targetExposurePct: round4(plan.targetExposurePct),
+  });
+  await recorder.publishReputation(store.metrics() as unknown as Record<string, number>);
+
   log("tick", {
     regime: state.regime,
     verdict: verdict.verdict,

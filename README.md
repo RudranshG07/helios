@@ -46,33 +46,43 @@ docs/resolved.md      resolve-first findings
 
 ## Run (paper mode)
 
-Requires Node >= 24 (native TypeScript + `node:sqlite`) and Go >= 1.24.
+Requires Node >= 24 (native TypeScript + `node:sqlite`) and Go >= 1.26. For live modes also install the Trust Wallet CLI: `npm i -g @trustwallet/cli`.
 
 ```bash
 npm install
+cp .env.example .env          # fill in CMC + TWAK creds for live modes (not needed for paper)
 
 # terminal 1 — the Go risk engine (DQ spine)
 cd risk-engine && go build -o bin/risk-engine . && RISK_ENGINE_ADDR=127.0.0.1:8081 ./bin/risk-engine
 
-# terminal 2 — the agent (paper mode: no execution, logs decisions)
+# terminal 2 — the agent (paper mode: simulated fills, real marking)
 npm start
 
 # optional terminal 3 — the Go watchdog
 cd watchdog && go build -o bin/watchdog . && ./bin/watchdog
 ```
 
-Health: `curl http://127.0.0.1:8080/health`
+- **Dashboard:** http://127.0.0.1:8080 (live equity, drawdown, positions, ledger)
+- **Health:** `curl http://127.0.0.1:8080/health` · **State JSON:** `curl http://127.0.0.1:8080/state`
 
-Modes (in `config.json`): `paper` (no execution) → `testnet` (real txs, fake value) → `mainnet` (small real capital). Never jump straight to mainnet.
+Modes (in `config.json`): `paper` (simulated execution) → `testnet` → `mainnet` (small real capital). Never jump straight to mainnet. For unattended deployment see `deploy/`.
 
-## Tests
+## Tests & probes
 ```bash
-cd risk-engine && go test ./...     # DQ-spine unit tests
-npm run typecheck                   # TS type checking
+cd risk-engine && go test ./...   # Go DQ-spine unit tests
+npm test                          # TS tests (decide FSM + state accounting)
+npm run typecheck                 # TS type checking
+npm run sense:probe               # live CMC MarketState (needs CMC key in .env)
+npm run swap:probe                # live swap quotes via TWAK (no funds)
 ```
+
+## How we used each stack
+- **CoinMarketCap (the brain):** the agent consumes the CMC **Agent Hub MCP** (`mcp.coinmarketcap.com`). Each tick `CmcSensor` calls `get_global_metrics_latest` (fear-&-greed, altcoin-season, BTC dominance → regime), `get_crypto_technical_analysis` (RSI/MACD/EMA → momentum & trend), `get_global_crypto_derivatives_metrics` (funding/OI → cross-asset pressure) and `get_crypto_quotes_latest` (price + liquidity), normalized into a deterministic `MarketState`.
+- **Trust Wallet Agent Kit (the hands):** self-custody autonomous signing. The execute layer shells out to `twak swap` (the agent wallet, no per-tx approval) for quotes and on-chain swaps; the wallet's key never leaves the local keychain.
+- **BNB Chain / ERC-8004 (the memory):** the agent registers an on-chain **ERC-8004 identity** via `twak erc8004 register` and writes each decision + realized PnL to it with `set-metadata`, producing a verifiable, auditable track record on BSC.
 
 ## Risk rules (declared, enforced)
 All limits live in `config.json` and are enforced by the Go risk engine on every trade. The hard drawdown stop (default 25%) sits below the disqualification cap so confirmation latency never breaches it. See `config.json`.
 
 ## Status
-Paper-mode loop is fully wired end-to-end (Sense → Decide → Go risk engine → Execute → State → Record → Ops). Live integrations (CMC signals, PancakeSwap execution, TWAK signing, ERC-8004 writes) are pending the resolve-first verification in `docs/resolved.md`.
+Fully wired end-to-end: Sense (live CMC) → Decide (FSM + turnover nudge) → Go risk engine (drawdown breaker, caps, cost, cooldown, kill-switch) → Execute (`twak swap`) → State (marked positions, real equity/drawdown) → Record (ERC-8004) → Ops (health, dashboard, alerts, Go watchdog). The drawdown breaker is verified firing on real marked equity (blocks entries, allows flatten). Remaining before the live window: fund the agent wallet for a mainnet small-capital dry run, register via `twak compete`, and confirm the exact contest limits. See `docs/resolved.md`.

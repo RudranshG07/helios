@@ -21,18 +21,22 @@ class TwakExecutor implements Executor {
     const stable = this.cfg.risk.stableAsset;
     const from = trade.side === "buy" ? stable : trade.token;
     const to = trade.side === "buy" ? trade.token : stable;
+    const args = {
+      sizeUsd: trade.sizeUsd,
+      from,
+      to,
+      chain: this.cfg.chain.twakChain,
+      slippagePct: trade.maxSlippageBps / 100,
+      password: process.env.TWAK_WALLET_PASSWORD,
+    };
 
-    const result = await twakSwap(
-      {
-        sizeUsd: trade.sizeUsd,
-        from,
-        to,
-        chain: this.cfg.chain.twakChain,
-        slippagePct: trade.maxSlippageBps / 100,
-        password: process.env.TWAK_WALLET_PASSWORD,
-      },
-      false,
-    );
+    const quote = await twakSwap(args, true);
+    const capPct = trade.maxSlippageBps / 100;
+    if (Number.isFinite(quote.priceImpactPct) && quote.priceImpactPct > capPct) {
+      throw new Error(`slippage guard: price impact ${quote.priceImpactPct}% exceeds cap ${capPct}% for ${from}->${to}`);
+    }
+
+    const result = await twakSwap(args, false);
 
     if (trade.side === "buy") {
       return { txHash: result.txHash, token: trade.token, stableDelta: -result.inputAmount, tokenDelta: result.outputAmount, notionalUsd: result.inputAmount };

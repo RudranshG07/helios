@@ -15,9 +15,15 @@ export interface RiskConfig {
   maxSlippageBps: number;
   perTradeCostBps: number;
   cooldownMinutes: number;
+  trendThreshold: number;
   allowedTokens: string[];
   stableAsset: string;
   killSwitch: boolean;
+}
+
+export interface DecideContext {
+  secondsSinceLastTrade: number;
+  volScale: number;
 }
 
 export interface ChainConfig {
