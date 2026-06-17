@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/index.ts",
     "sense:probe": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/sense/probe.ts",
+    "swap:probe": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/execute/probe.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

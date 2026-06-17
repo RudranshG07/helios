@@ -12,7 +12,7 @@ import type { Config, EvalRequest, MarketState } from "./types/index.ts";
 
 async function main(): Promise<void> {
   const cfg = loadConfig();
-  const store = new Store(process.env.HELIOS_DB ?? "data/helios.db");
+  const store = new Store(process.env.HELIOS_DB ?? "data/helios.db", cfg.risk.stableAsset);
   store.initialize(cfg.startingCapitalUsd);
 
   const sensor = createSensor(cfg);
@@ -54,13 +54,17 @@ async function tick(
   const now = Math.floor(Date.now() / 1000);
   const state = await sensor.read();
   const stale = state.stale || now - state.ts > cfg.staleMarketSeconds;
-  const portfolio = store.getPortfolio();
+  const primary = cfg.risk.allowedTokens.find((t) => t !== cfg.risk.stableAsset)!;
 
   if (stale) {
     log("tick", { stale: true, regime: state.regime });
-    health.beat({ stale: true, tradeCount: portfolio.tradeCount });
+    health.beat({ stale: true, tradeCount: store.getPortfolio().tradeCount });
     return;
   }
+
+  store.markPrices({ [primary]: state.price });
+  store.refreshHighWater();
+  const portfolio = store.getPortfolio();
 
   const plan = decide(state, portfolio, cfg.risk);
   const req: EvalRequest = {
@@ -74,29 +78,38 @@ async function tick(
 
   for (const trade of verdict.approved) {
     if (store.alreadyFilled(trade.clientOrderId)) continue;
-    const fill = await executor.execute(trade);
-    store.recordFill(trade, fill, now);
+    const fill = await executor.execute(trade, state.price);
+    store.applyFill(fill, now, trade.clientOrderId);
     await recorder.record({
       ts: now,
       regime: state.regime,
       action: `${trade.side} ${trade.token}`,
-      sizeUsd: fill.filledUsd,
+      sizeUsd: fill.notionalUsd,
       realizedPnl: 0,
       stateHash: hashState(state),
     });
   }
 
+  store.markPrices({ [primary]: state.price });
+  store.refreshHighWater();
   const after = store.getPortfolio();
   log("tick", {
     regime: state.regime,
     verdict: verdict.verdict,
     drawdownPct: round4(verdict.drawdownPct),
     target: round4(plan.targetExposurePct),
+    equityUsd: round2(after.equityUsd),
     approved: verdict.approved.length,
     rejected: verdict.rejected.length,
     tradeCount: after.tradeCount,
   });
-  health.beat({ regime: state.regime, verdict: verdict.verdict, tradeCount: after.tradeCount });
+  health.beat({
+    regime: state.regime,
+    verdict: verdict.verdict,
+    equityUsd: round2(after.equityUsd),
+    drawdownPct: round4(verdict.drawdownPct),
+    tradeCount: after.tradeCount,
+  });
 }
 
 function hashState(state: MarketState): string {
@@ -119,6 +132,10 @@ function sleep(ms: number, cancelled: () => boolean): Promise<void> {
 
 function round4(x: number): number {
   return Math.round(x * 10_000) / 10_000;
+}
+
+function round2(x: number): number {
+  return Math.round(x * 100) / 100;
 }
 
 main().catch((err) => {

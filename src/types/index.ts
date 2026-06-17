@@ -21,6 +21,8 @@ export interface RiskConfig {
 
 export interface ChainConfig {
   chainId: number;
+  twakChain: string;
+  erc8004Chain: string;
   rpcUrls: string[];
   confirmations: number;
   gasBumpPct: number;

@@ -1,22 +1,44 @@
 import type { Config, Trade } from "../types/index.ts";
 import type { Fill } from "../state/store.ts";
-
-export interface Signer {
-  name(): string;
-  signAndBroadcast(unsignedTx: unknown): Promise<string>;
-}
+import { twakSwap } from "./twak.ts";
 
 export interface Executor {
-  execute(trade: Trade): Promise<Fill>;
+  execute(trade: Trade, price: number): Promise<Fill>;
 }
 
 export function createExecutor(cfg: Config): Executor {
-  if (cfg.mode === "paper") return new PaperExecutor(cfg);
-  throw new Error("live executor not implemented — resolve-first: PancakeSwap router + signer wiring");
+  return cfg.mode === "paper" ? new PaperExecutor(cfg) : new TwakExecutor(cfg);
 }
 
-export function createSigner(_cfg: Config): Signer {
-  return new TwakSigner();
+class TwakExecutor implements Executor {
+  private readonly cfg: Config;
+
+  constructor(cfg: Config) {
+    this.cfg = cfg;
+  }
+
+  async execute(trade: Trade): Promise<Fill> {
+    const stable = this.cfg.risk.stableAsset;
+    const from = trade.side === "buy" ? stable : trade.token;
+    const to = trade.side === "buy" ? trade.token : stable;
+
+    const result = await twakSwap(
+      {
+        sizeUsd: trade.sizeUsd,
+        from,
+        to,
+        chain: this.cfg.chain.twakChain,
+        slippagePct: trade.maxSlippageBps / 100,
+        password: process.env.TWAK_WALLET_PASSWORD,
+      },
+      false,
+    );
+
+    if (trade.side === "buy") {
+      return { txHash: result.txHash, token: trade.token, stableDelta: -result.inputAmount, tokenDelta: result.outputAmount, notionalUsd: result.inputAmount };
+    }
+    return { txHash: result.txHash, token: trade.token, stableDelta: result.outputAmount, tokenDelta: -result.inputAmount, notionalUsd: result.outputAmount };
+  }
 }
 
 class PaperExecutor implements Executor {
@@ -26,32 +48,11 @@ class PaperExecutor implements Executor {
     this.cfg = cfg;
   }
 
-  async execute(trade: Trade): Promise<Fill> {
-    const cost = trade.sizeUsd * (this.cfg.risk.perTradeCostBps / 10_000);
-    return { txHash: `paper:${trade.clientOrderId}`, filledUsd: round2(trade.sizeUsd - cost) };
+  async execute(trade: Trade, price: number): Promise<Fill> {
+    const net = trade.sizeUsd * (1 - this.cfg.risk.perTradeCostBps / 10_000);
+    if (trade.side === "buy") {
+      return { txHash: `paper:${trade.clientOrderId}`, token: trade.token, stableDelta: -trade.sizeUsd, tokenDelta: net / price, notionalUsd: trade.sizeUsd };
+    }
+    return { txHash: `paper:${trade.clientOrderId}`, token: trade.token, stableDelta: net, tokenDelta: -(trade.sizeUsd / price), notionalUsd: net };
   }
-}
-
-class TwakSigner implements Signer {
-  name(): string {
-    return "twak-cli";
-  }
-
-  async signAndBroadcast(): Promise<string> {
-    throw new Error("TwakSigner not implemented — resolve-first: prove TWAK CLI signs+broadcasts a BSC testnet swap");
-  }
-}
-
-export class EthersSigner implements Signer {
-  name(): string {
-    return "ethers-native";
-  }
-
-  async signAndBroadcast(): Promise<string> {
-    throw new Error("EthersSigner fallback not implemented — wire after chain layer lands");
-  }
-}
-
-function round2(x: number): number {
-  return Math.round(x * 100) / 100;
 }
