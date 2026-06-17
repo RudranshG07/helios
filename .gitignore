@@ -7,5 +7,12 @@ dist/
 data/
 risk-engine/bin/
 watchdog/bin/
+risk-engine/risk-engine
+watchdog/watchdog
 __pycache__/
 .venv/
+
+CLAUDE.md
+bnbhack-master-document.md
+.claude/
+.mcp.json
