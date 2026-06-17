@@ -22,5 +22,11 @@ function validate(c: Config): void {
   if (r.maxPositionPctPerToken <= 0 || r.maxPositionPctPerToken > 1) fail("maxPositionPctPerToken must be in (0,1]");
   if (!r.allowedTokens.includes(r.stableAsset)) fail("stableAsset must be in allowedTokens");
   if (r.allowedTokens.filter((t) => t !== r.stableAsset).length === 0) fail("need at least one non-stable allowed token");
+  if (r.trendThreshold < 0) fail("trendThreshold must be >= 0");
+  if (r.minTradesPerDay < 0) fail("minTradesPerDay must be >= 0");
   if (c.chain.rpcUrls.length === 0) fail("at least one rpc url required");
+  if (c.mode !== "paper") {
+    if (!c.chain.twakChain) fail("chain.twakChain required for live modes");
+    if (!c.chain.erc8004Chain) fail("chain.erc8004Chain required for live modes");
+  }
 }

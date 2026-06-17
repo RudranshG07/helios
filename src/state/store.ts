@@ -117,6 +117,8 @@ export class Store {
   }
 
   applyFill(fill: Fill, ts: number, clientOrderId: string): number {
+    if (this.alreadyFilled(clientOrderId)) return 0;
+
     let realizedPnl = 0;
     if (fill.tokenDelta < 0) {
       const entry = this.positionEntry(fill.token);
@@ -124,16 +126,23 @@ export class Store {
       if (entry !== undefined && qty > 0) realizedPnl = (fill.notionalUsd / qty - entry) * qty;
     }
 
-    this.db
-      .prepare("INSERT OR IGNORE INTO fills (clientOrderId, ts, token, stableDelta, tokenDelta, notionalUsd, realizedPnl, txHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(clientOrderId, ts, fill.token, fill.stableDelta, fill.tokenDelta, fill.notionalUsd, realizedPnl, fill.txHash);
+    this.db.exec("BEGIN");
+    try {
+      this.db
+        .prepare("INSERT INTO fills (clientOrderId, ts, token, stableDelta, tokenDelta, notionalUsd, realizedPnl, txHash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(clientOrderId, ts, fill.token, fill.stableDelta, fill.tokenDelta, fill.notionalUsd, realizedPnl, fill.txHash);
 
-    this.addToPosition(this.stable, fill.stableDelta, 1);
-    const tokenPx = Math.abs(fill.tokenDelta) > 0 ? fill.notionalUsd / Math.abs(fill.tokenDelta) : 0;
-    this.addToPosition(fill.token, fill.tokenDelta, tokenPx);
+      this.addToPosition(this.stable, fill.stableDelta, 1);
+      const tokenPx = Math.abs(fill.tokenDelta) > 0 ? fill.notionalUsd / Math.abs(fill.tokenDelta) : 0;
+      this.addToPosition(fill.token, fill.tokenDelta, tokenPx);
 
-    this.setNumber("tradeCount", (this.getNumber("tradeCount") ?? 0) + 1);
-    this.setNumber("realizedPnlUsd", (this.getNumber("realizedPnlUsd") ?? 0) + realizedPnl);
+      this.setNumber("tradeCount", (this.getNumber("tradeCount") ?? 0) + 1);
+      this.setNumber("realizedPnlUsd", (this.getNumber("realizedPnlUsd") ?? 0) + realizedPnl);
+      this.db.exec("COMMIT");
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
+    }
     return realizedPnl;
   }
 

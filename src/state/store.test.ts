@@ -39,3 +39,14 @@ test("alreadyFilled enforces idempotency", () => {
   s.applyFill({ txHash: "t", token: "WBNB", stableDelta: -10, tokenDelta: 10 / 600, notionalUsd: 10 }, 1, "x");
   assert.equal(s.alreadyFilled("x"), true);
 });
+
+test("applyFill is idempotent on duplicate clientOrderId", () => {
+  const s = new Store(":memory:", "USDT");
+  s.initialize(1000);
+  const fill = { txHash: "t", token: "WBNB", stableDelta: -100, tokenDelta: 100 / 600, notionalUsd: 100 };
+  s.applyFill(fill, 1, "dup");
+  s.applyFill(fill, 1, "dup");
+  const p = s.getPortfolio();
+  assert.equal(p.tradeCount, 1);
+  assert.ok(Math.abs((p.positions.find((x) => x.token === "WBNB")?.qtyBase ?? 0) - 100 / 600) < 1e-9);
+});

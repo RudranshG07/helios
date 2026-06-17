@@ -37,13 +37,14 @@ export class OpsServer {
   start(): void {
     this.server = createServer((req, res) => {
       const url = req.url ?? "/";
-      if (req.method === "POST" && url === "/kill") {
-        this.store.setKill(true);
-        return this.json(res, { killSwitch: true });
-      }
-      if (req.method === "POST" && url === "/resume") {
-        this.store.setKill(false);
-        return this.json(res, { killSwitch: false });
+      if (req.method === "POST" && (url === "/kill" || url === "/resume")) {
+        if (!authorized(req)) {
+          res.writeHead(403, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: "forbidden" }));
+        }
+        const on = url === "/kill";
+        this.store.setKill(on);
+        return this.json(res, { killSwitch: on });
       }
       if (url === "/signal") return this.serveSignal(req, res);
       if (url === "/health") return this.json(res, { status: this.status, lastTickUnix: this.lastTickUnix, ...this.beatExtra });
@@ -124,4 +125,10 @@ export class OpsServer {
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
   }
+}
+
+function authorized(req: import("node:http").IncomingMessage): boolean {
+  const token = process.env.OPS_TOKEN;
+  if (!token) return true;
+  return req.headers["authorization"] === `Bearer ${token}`;
 }
