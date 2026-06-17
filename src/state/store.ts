@@ -33,7 +33,7 @@ export class Store {
   getPortfolio(): Portfolio {
     const positions = this.db
       .prepare("SELECT token, qtyBase, entryPxUsd, markPxUsd FROM positions")
-      .all() as Position[];
+      .all() as unknown as Position[];
     return {
       equityUsd: this.getNumber("equityUsd") ?? 0,
       highWaterUsd: this.getNumber("highWaterUsd") ?? 0,
@@ -54,7 +54,7 @@ export class Store {
   }
 
   lastTradeMap(): Record<string, number> {
-    const rows = this.db.prepare("SELECT token, MAX(ts) AS ts FROM fills GROUP BY token").all() as {
+    const rows = this.db.prepare("SELECT token, MAX(ts) AS ts FROM fills GROUP BY token").all() as unknown as {
       token: string;
       ts: number;
     }[];
@@ -73,7 +73,7 @@ export class Store {
   }
 
   private getNumber(key: string): number | undefined {
-    const row = this.db.prepare("SELECT value FROM meta WHERE key = ?").get(key) as { value: string } | undefined;
+    const row = this.db.prepare("SELECT value FROM meta WHERE key = ?").get(key) as unknown as { value: string } | undefined;
     return row === undefined ? undefined : Number(row.value);
   }
 
