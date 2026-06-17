@@ -6,7 +6,8 @@ import { decide } from "./decide/index.ts";
 import { evaluate } from "./risk/client.ts";
 import { createExecutor, type Executor } from "./execute/index.ts";
 import { createRecorder, type Recorder } from "./record/index.ts";
-import { HealthServer } from "./ops/health.ts";
+import { OpsServer } from "./ops/health.ts";
+import { Alerter } from "./ops/alerts.ts";
 import { errorLog, log } from "./util/log.ts";
 import type { Config, EvalRequest, MarketState } from "./types/index.ts";
 
@@ -18,10 +19,12 @@ async function main(): Promise<void> {
   const sensor = createSensor(cfg);
   const executor = createExecutor(cfg);
   const recorder = createRecorder(cfg, store);
-  const health = new HealthServer(cfg.ops.healthPort);
-  health.start();
+  const ops = new OpsServer(store, cfg.ops.healthPort);
+  ops.start();
+  const alerter = new Alerter(process.env.ALERT_WEBHOOK_URL ?? cfg.ops.alertWebhookUrl);
 
   log("starting", { mode: cfg.mode, healthPort: cfg.ops.healthPort, tick: cfg.tickIntervalSeconds });
+  await alerter.send("startup", `started in ${cfg.mode} mode`);
 
   let running = true;
   const stop = () => {
@@ -32,14 +35,15 @@ async function main(): Promise<void> {
 
   while (running) {
     try {
-      await tick(cfg, store, sensor, executor, recorder, health);
+      await tick(cfg, store, sensor, executor, recorder, ops, alerter);
     } catch (err) {
       errorLog("tick failed", err);
+      await alerter.send("tick-error", `tick failed: ${err instanceof Error ? err.message : String(err)}`);
     }
     await sleep(cfg.tickIntervalSeconds * 1000, () => !running);
   }
 
-  health.stop();
+  ops.stop();
   log("stopped", {});
 }
 
@@ -49,7 +53,8 @@ async function tick(
   sensor: Sensor,
   executor: Executor,
   recorder: Recorder,
-  health: HealthServer,
+  ops: OpsServer,
+  alerter: Alerter,
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   const state = await sensor.read();
@@ -58,7 +63,8 @@ async function tick(
 
   if (stale) {
     log("tick", { stale: true, regime: state.regime });
-    health.beat({ stale: true, tradeCount: store.getPortfolio().tradeCount });
+    ops.beat({ stale: true, tradeCount: store.getPortfolio().tradeCount });
+    await alerter.send("stale", "market data is stale; holding");
     return;
   }
 
@@ -66,7 +72,9 @@ async function tick(
   store.refreshHighWater();
   const portfolio = store.getPortfolio();
 
-  const plan = decide(state, portfolio, cfg.risk);
+  const lastFill = store.lastFillUnix();
+  const secondsSinceLastTrade = lastFill > 0 ? now - lastFill : Number.MAX_SAFE_INTEGER;
+  const plan = decide(state, portfolio, cfg.risk, secondsSinceLastTrade);
   const req: EvalRequest = {
     nowUnix: now,
     portfolio,
@@ -75,6 +83,13 @@ async function tick(
     lastTrade: store.lastTradeMap(),
   };
   const verdict = await evaluate(cfg, req);
+
+  if (verdict.verdict === "BREAKER" || verdict.verdict === "KILL") {
+    await alerter.send(`breaker-${verdict.verdict}`, `${verdict.verdict} active at drawdown ${(verdict.drawdownPct * 100).toFixed(2)}% — flattening`);
+  }
+  if (verdict.verdict === "ENGINE_DOWN") {
+    await alerter.send("engine-down", "risk engine unreachable — no trades executed");
+  }
 
   for (const trade of verdict.approved) {
     if (store.alreadyFilled(trade.clientOrderId)) continue;
@@ -103,7 +118,7 @@ async function tick(
     rejected: verdict.rejected.length,
     tradeCount: after.tradeCount,
   });
-  health.beat({
+  ops.beat({
     regime: state.regime,
     verdict: verdict.verdict,
     equityUsd: round2(after.equityUsd),

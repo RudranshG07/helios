@@ -80,6 +80,17 @@ export class Store {
     return Object.fromEntries(rows.map((r) => [r.token, r.ts]));
   }
 
+  lastFillUnix(): number {
+    const row = this.db.prepare("SELECT MAX(ts) AS ts FROM fills").get() as unknown as { ts: number | null } | undefined;
+    return row?.ts ?? 0;
+  }
+
+  getRecentLedger(limit: number): LedgerEntry[] {
+    return this.db
+      .prepare("SELECT ts, regime, action, sizeUsd, realizedPnl, stateHash FROM ledger ORDER BY id DESC LIMIT ?")
+      .all(limit) as unknown as LedgerEntry[];
+  }
+
   appendLedger(entry: LedgerEntry): void {
     this.db
       .prepare("INSERT INTO ledger (ts, regime, action, sizeUsd, realizedPnl, stateHash) VALUES (?, ?, ?, ?, ?, ?)")

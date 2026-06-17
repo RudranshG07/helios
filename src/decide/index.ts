@@ -1,10 +1,42 @@
 import type { MarketState, Portfolio, RiskConfig, Trade, TradePlan } from "../types/index.ts";
 
-export function decide(state: MarketState, portfolio: Portfolio, cfg: RiskConfig): TradePlan {
+export function decide(state: MarketState, portfolio: Portfolio, cfg: RiskConfig, secondsSinceLastTrade: number): TradePlan {
   if (state.stale || state.riskFlags.length > 0) return flatten(state, portfolio, cfg);
 
   const target = targetExposure(state, cfg);
-  return planTowardTarget(target, state, portfolio, cfg);
+  const plan = planTowardTarget(target, state, portfolio, cfg);
+
+  if (plan.trades.length === 0) {
+    const nudge = turnoverNudge(state, portfolio, cfg, secondsSinceLastTrade);
+    if (nudge) plan.trades.push(nudge);
+  }
+  return plan;
+}
+
+function turnoverNudge(state: MarketState, portfolio: Portfolio, cfg: RiskConfig, secondsSinceLastTrade: number): Trade | null {
+  if (cfg.minTradesPerDay <= 0 || portfolio.equityUsd <= 0) return null;
+  if (secondsSinceLastTrade < 86_400 / cfg.minTradesPerDay) return null;
+
+  const primary = cfg.allowedTokens.find((t) => t !== cfg.stableAsset)!;
+  const exposure = nonStableExposure(portfolio, cfg.stableAsset);
+  const size = Math.min(cfg.maxTradeSizeUsd, Math.max(10, 0.02 * portfolio.equityUsd));
+  if (size < 1) return null;
+
+  const canBuy = state.regime !== "risk-off" && exposure + size <= cfg.maxExposurePct * portfolio.equityUsd;
+  if (canBuy) return nudgeTrade(primary, "buy", size, state, cfg);
+  if (exposure >= size) return nudgeTrade(primary, "sell", size, state, cfg);
+  return null;
+}
+
+function nudgeTrade(token: string, side: "buy" | "sell", sizeUsd: number, state: MarketState, cfg: RiskConfig): Trade {
+  return {
+    token,
+    side,
+    sizeUsd: round2(sizeUsd),
+    maxSlippageBps: cfg.maxSlippageBps,
+    liquidityUsd: state.liquidityUsd,
+    clientOrderId: `${token}-nudge-${state.ts}`,
+  };
 }
 
 function targetExposure(state: MarketState, cfg: RiskConfig): number {

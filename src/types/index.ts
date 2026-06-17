@@ -10,6 +10,7 @@ export interface RiskConfig {
   hardDrawdownStopPct: number;
   drawdownWarnPct: number;
   minTradesTarget: number;
+  minTradesPerDay: number;
   minLiquidityUsd: number;
   maxSlippageBps: number;
   perTradeCostBps: number;

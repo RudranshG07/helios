@@ -1,0 +1,16 @@
+[Unit]
+Description=Helios trading agent (TypeScript core)
+After=helios-risk.service network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/helios
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning src/index.ts
+EnvironmentFile=/opt/helios/.env
+Environment=HELIOS_DB=/opt/helios/data/helios.db
+Restart=always
+RestartSec=3
+User=helios
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=Helios watchdog (Go supervisor)
+After=helios-agent.service
+Wants=helios-agent.service
+
+[Service]
+WorkingDirectory=/opt/helios
+ExecStart=/usr/local/bin/watchdog
+EnvironmentFile=/opt/helios/.env
+Restart=always
+RestartSec=5
+User=helios
+
+[Install]
+WantedBy=multi-user.target

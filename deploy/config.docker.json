@@ -20,31 +20,15 @@
     "killSwitch": false
   },
   "chain": {
-    "chainId": 97,
-    "twakChain": "smartchain-testnet",
-    "erc8004Chain": "bsctestnet",
-    "rpcUrls": [
-      "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
-      "https://data-seed-prebsc-2-s1.bnbchain.org:8545"
-    ],
+    "chainId": 56,
+    "twakChain": "smartchain",
+    "erc8004Chain": "bsc",
+    "rpcUrls": ["https://bsc-dataseed.bnbchain.org"],
     "confirmations": 1,
     "gasBumpPct": 12,
     "txTimeoutSeconds": 90
   },
-  "riskEngine": {
-    "url": "http://127.0.0.1:8081",
-    "timeoutMs": 4000,
-    "failClosed": true
-  },
-  "ops": {
-    "healthPort": 8080,
-    "heartbeatSeconds": 30,
-    "alertWebhookUrl": ""
-  },
-  "watchdog": {
-    "healthUrl": "http://127.0.0.1:8080/health",
-    "pollSeconds": 15,
-    "stallSeconds": 120,
-    "restartCommand": "pm2 restart helios-agent"
-  }
+  "riskEngine": { "url": "http://risk-engine:8081", "timeoutMs": 4000, "failClosed": true },
+  "ops": { "healthPort": 8080, "heartbeatSeconds": 30, "alertWebhookUrl": "" },
+  "watchdog": { "healthUrl": "http://agent:8080/health", "pollSeconds": 15, "stallSeconds": 120, "restartCommand": "" }
 }

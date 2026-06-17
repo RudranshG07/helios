@@ -1,0 +1,14 @@
+[Unit]
+Description=Helios risk engine (Go, stateless DQ gate)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/risk-engine
+Environment=RISK_ENGINE_ADDR=127.0.0.1:8081
+Restart=always
+RestartSec=2
+User=helios
+
+[Install]
+WantedBy=multi-user.target
