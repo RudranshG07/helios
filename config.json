@@ -1,0 +1,46 @@
+{
+  "mode": "paper",
+  "tickIntervalSeconds": 300,
+  "staleMarketSeconds": 900,
+  "risk": {
+    "maxExposurePct": 0.80,
+    "maxPositionPctPerToken": 0.25,
+    "maxTradeSizeUsd": 250,
+    "hardDrawdownStopPct": 0.25,
+    "drawdownWarnPct": 0.18,
+    "minTradesTarget": 30,
+    "minLiquidityUsd": 250000,
+    "maxSlippageBps": 80,
+    "perTradeCostBps": 30,
+    "cooldownMinutes": 15,
+    "allowedTokens": ["WBNB", "USDT", "CAKE"],
+    "stableAsset": "USDT",
+    "killSwitch": false
+  },
+  "chain": {
+    "chainId": 97,
+    "rpcUrls": [
+      "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
+      "https://data-seed-prebsc-2-s1.bnbchain.org:8545"
+    ],
+    "confirmations": 1,
+    "gasBumpPct": 12,
+    "txTimeoutSeconds": 90
+  },
+  "riskEngine": {
+    "url": "http://127.0.0.1:8081",
+    "timeoutMs": 4000,
+    "failClosed": true
+  },
+  "ops": {
+    "healthPort": 8080,
+    "heartbeatSeconds": 30,
+    "alertWebhookUrl": ""
+  },
+  "watchdog": {
+    "healthUrl": "http://127.0.0.1:8080/health",
+    "pollSeconds": 15,
+    "stallSeconds": 120,
+    "restartCommand": "npm run start"
+  }
+}

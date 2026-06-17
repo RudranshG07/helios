@@ -1,0 +1,11 @@
+.env
+node_modules/
+dist/
+*.log
+*.db
+*.db-journal
+data/
+risk-engine/bin/
+watchdog/bin/
+__pycache__/
+.venv/
