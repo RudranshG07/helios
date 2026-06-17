@@ -62,8 +62,8 @@ npm start
 cd watchdog && go build -o bin/watchdog . && ./bin/watchdog
 ```
 
-- **Dashboard:** http://127.0.0.1:8080 (live equity, drawdown, positions, ledger)
-- **Health:** `curl http://127.0.0.1:8080/health` · **State JSON:** `curl http://127.0.0.1:8080/state`
+- **Dashboard:** http://127.0.0.1:8080 (equity, return, drawdown, win-rate, positions, ledger, risk-policy hash)
+- **Health:** `/health` · **State JSON:** `/state` · **Paid signal:** `/signal` (x402) · **Kill-switch:** `POST /kill`, `POST /resume`
 
 Modes (in `config.json`): `paper` (simulated execution) → `testnet` → `mainnet` (small real capital). Never jump straight to mainnet. For unattended deployment see `deploy/`.
 
