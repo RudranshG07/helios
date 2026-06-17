@@ -11,7 +11,11 @@ export function createRecorder(cfg: Config, store: Store): Recorder {
 }
 
 class LocalRecorder implements Recorder {
-  constructor(private readonly store: Store) {}
+  private readonly store: Store;
+
+  constructor(store: Store) {
+    this.store = store;
+  }
 
   async record(entry: LedgerEntry): Promise<void> {
     this.store.appendLedger(entry);

@@ -24,7 +24,11 @@ class MockSensor implements Sensor {
 }
 
 class CmcSensor implements Sensor {
-  constructor(private readonly cfg: Config) {}
+  private readonly cfg: Config;
+
+  constructor(cfg: Config) {
+    this.cfg = cfg;
+  }
 
   async read(): Promise<MarketState> {
     throw new Error("CmcSensor not implemented — resolve-first: map CMC MCP tools to MarketState");

@@ -15,12 +15,16 @@ export function createExecutor(cfg: Config): Executor {
   throw new Error("live executor not implemented — resolve-first: PancakeSwap router + signer wiring");
 }
 
-export function createSigner(cfg: Config): Signer {
-  return new TwakSigner(cfg);
+export function createSigner(_cfg: Config): Signer {
+  return new TwakSigner();
 }
 
 class PaperExecutor implements Executor {
-  constructor(private readonly cfg: Config) {}
+  private readonly cfg: Config;
+
+  constructor(cfg: Config) {
+    this.cfg = cfg;
+  }
 
   async execute(trade: Trade): Promise<Fill> {
     const cost = trade.sizeUsd * (this.cfg.risk.perTradeCostBps / 10_000);
@@ -29,8 +33,6 @@ class PaperExecutor implements Executor {
 }
 
 class TwakSigner implements Signer {
-  constructor(private readonly cfg: Config) {}
-
   name(): string {
     return "twak-cli";
   }

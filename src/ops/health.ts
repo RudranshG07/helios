@@ -6,7 +6,11 @@ export class HealthServer {
   private lastTickUnix = 0;
   private extra: Record<string, unknown> = {};
 
-  constructor(private readonly port: number) {}
+  private readonly port: number;
+
+  constructor(port: number) {
+    this.port = port;
+  }
 
   start(): void {
     this.server = createServer((req, res) => {
