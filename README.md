@@ -77,9 +77,16 @@ npm run swap:probe                # live swap quotes via TWAK (no funds)
 ```
 
 ## How we used each stack
-- **CoinMarketCap (the brain):** the agent consumes the CMC **Agent Hub MCP** (`mcp.coinmarketcap.com`). Each tick `CmcSensor` calls `get_global_metrics_latest` (fear-&-greed, altcoin-season, BTC dominance → regime), `get_crypto_technical_analysis` (RSI/MACD/EMA → momentum & trend), `get_global_crypto_derivatives_metrics` (funding/OI → cross-asset pressure) and `get_crypto_quotes_latest` (price + liquidity), normalized into a deterministic `MarketState`.
-- **Trust Wallet Agent Kit (the hands):** self-custody autonomous signing. The execute layer shells out to `twak swap` (the agent wallet, no per-tx approval) for quotes and on-chain swaps; the wallet's key never leaves the local keychain.
-- **BNB Chain / ERC-8004 (the memory):** the agent registers an on-chain **ERC-8004 identity** via `twak erc8004 register` and writes each decision + realized PnL to it with `set-metadata`, producing a verifiable, auditable track record on BSC.
+- **CoinMarketCap (the brain):** the agent consumes the CMC **Agent Hub MCP** (`mcp.coinmarketcap.com`). Each tick `CmcSensor` calls `get_global_metrics_latest` (fear-&-greed, altcoin-season, BTC dominance → regime), `get_crypto_technical_analysis` (RSI/MACD/EMA → momentum & trend), `get_global_crypto_derivatives_metrics` (funding/OI → cross-asset pressure) and `get_crypto_quotes_latest` (price + liquidity), blended into a deterministic ensemble `MarketState`. We also **re-sell** these signals over an **x402** pay-per-call endpoint (`GET /signal`, $0.01 USDC on Base).
+- **Trust Wallet Agent Kit (the hands):** self-custody autonomous signing. The execute layer shells out to `twak swap` (the agent wallet, no per-tx approval) with a pre-trade slippage guard; the wallet's key never leaves the local keychain.
+- **BNB Chain (the memory + commerce):** the agent registers an on-chain **ERC-8004 identity** via `twak erc8004`, writes each decision + realized PnL to it, and publishes a periodic **reputation** snapshot (return, max-drawdown, win-rate, profit-factor) — a verifiable, auditable track record. It can also **sell its signals to other agents** via **ERC-8183** on-chain job escrows (`src/commerce/erc8183.ts`).
+
+## What makes it different
+- **Deterministic FSM, not an LLM picking trades** — explainable, reproducible, auditable.
+- **The drawdown breaker is an isolated, unit-tested Go service** every trade must clear (fail-closed), with the hard stop *below* the DQ cap.
+- **Engineered to survive the unattended week** — Go watchdog, persisted state, idempotent execution, dust-safe flatten, runtime kill-switch.
+- **Verifiable + monetizable on-chain identity** — ERC-8004 reputation + ERC-8183 commerce + x402 signal sales (the uncontested BNB niche).
+- **Provably risk-constrained** — the declared risk config is hashed and published on-chain (`riskPolicyHash`), so anyone can verify the limits the agent is bound by.
 
 ## Risk rules (declared, enforced)
 All limits live in `config.json` and are enforced by the Go risk engine on every trade. The hard drawdown stop (default 25%) sits below the disqualification cap so confirmation latency never breaches it. See `config.json`.
