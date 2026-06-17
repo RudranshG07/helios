@@ -13,7 +13,12 @@ func Evaluate(req EvalRequest) EvalResponse {
 	cfg := req.Config
 	pf := req.Portfolio
 
-	resp := EvalResponse{DrawdownPct: drawdownPct(pf)}
+	resp := EvalResponse{
+		DrawdownPct: drawdownPct(pf),
+		Approved:    []Trade{},
+		Rejected:    []Rejection{},
+		Notes:       []string{},
+	}
 
 	flatten := cfg.KillSwitch || resp.DrawdownPct >= cfg.HardDrawdownStopPct
 	switch {
