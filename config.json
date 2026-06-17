@@ -41,6 +41,6 @@
     "healthUrl": "http://127.0.0.1:8080/health",
     "pollSeconds": 15,
     "stallSeconds": 120,
-    "restartCommand": "npm run start"
+    "restartCommand": "pm2 restart helios-agent"
   }
 }
