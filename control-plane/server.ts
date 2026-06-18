@@ -1,0 +1,209 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { spawn, type ChildProcess } from "node:child_process";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { randomBytes } from "node:crypto";
+import { Wallet } from "ethers";
+
+const ROOT = resolve(import.meta.dirname, "..");
+const BASE_CONFIG = resolve(ROOT, "config.json");
+const ENV = resolve(ROOT, ".env");
+const DATA = resolve(ROOT, "data");
+const REGISTRY = resolve(DATA, "registry.json");
+const WEB_DIST = resolve(ROOT, "web", "dist");
+const PORT = Number(process.env.CONTROL_PORT ?? 8090);
+const ENGINE_ADDR = "127.0.0.1:8081";
+
+const mainnetChain = { chainId: 56, twakChain: "smartchain", erc8004Chain: "bsc", rpcUrls: ["https://bsc-dataseed.bnbchain.org", "https://bsc-dataseed1.defibit.io"], confirmations: 1, gasBumpPct: 12, txTimeoutSeconds: 90 };
+const testnetChain = { chainId: 97, twakChain: "smartchain-testnet", erc8004Chain: "bsctestnet", rpcUrls: ["https://data-seed-prebsc-1-s1.bnbchain.org:8545"], confirmations: 1, gasBumpPct: 12, txTimeoutSeconds: 90 };
+
+interface User {
+  id: string;
+  walletAddress: string;
+  walletKey: string;
+  port: number;
+  createdAt: number;
+}
+
+mkdirSync(DATA, { recursive: true });
+const users: Record<string, User> = existsSync(REGISTRY) ? JSON.parse(readFileSync(REGISTRY, "utf8")) : {};
+const agents = new Map<string, ChildProcess>();
+let engine: ChildProcess | undefined;
+
+const saveRegistry = () => writeFileSync(REGISTRY, JSON.stringify(users, null, 2));
+
+function baseEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  if (existsSync(ENV)) {
+    for (const line of readFileSync(ENV, "utf8").split("\n")) {
+      const i = line.indexOf("=");
+      if (i > 0) env[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    }
+  }
+  return env;
+}
+
+function userDir(id: string): string {
+  const dir = resolve(DATA, id);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function userConfigPath(id: string): string {
+  return resolve(userDir(id), "config.json");
+}
+
+function readUserConfig(id: string): Record<string, unknown> {
+  const path = userConfigPath(id);
+  if (existsSync(path)) return JSON.parse(readFileSync(path, "utf8"));
+  const base = JSON.parse(readFileSync(BASE_CONFIG, "utf8"));
+  (base.ops as Record<string, unknown>).healthPort = users[id].port;
+  (base.riskEngine as Record<string, unknown>).url = `http://${ENGINE_ADDR}`;
+  writeFileSync(path, JSON.stringify(base, null, 2));
+  return base;
+}
+
+function ensureEngine(): void {
+  if (engine) return;
+  engine = spawn(resolve(ROOT, "risk-engine", "bin", "risk-engine"), { env: { ...process.env, RISK_ENGINE_ADDR: ENGINE_ADDR }, stdio: "inherit" });
+  engine.on("exit", () => (engine = undefined));
+}
+
+function startAgent(u: User): void {
+  ensureEngine();
+  if (agents.has(u.id)) return;
+  readUserConfig(u.id);
+  const proc = spawn("node", ["--disable-warning=ExperimentalWarning", "src/index.ts"], {
+    cwd: ROOT,
+    env: { ...baseEnv(), HELIOS_CONFIG: userConfigPath(u.id), HELIOS_DB: resolve(userDir(u.id), "helios.db"), TWAK_WALLET_ADDRESS: u.walletAddress, FALLBACK_PRIVATE_KEY: u.walletKey },
+    stdio: "inherit",
+  });
+  proc.on("exit", () => agents.delete(u.id));
+  agents.set(u.id, proc);
+}
+
+function stopAgent(id: string): void {
+  agents.get(id)?.kill("SIGTERM");
+  agents.delete(id);
+}
+
+async function proxyState(u: User): Promise<Record<string, unknown>> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${u.port}/state`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) throw new Error();
+    return { running: true, walletAddress: u.walletAddress, ...((await res.json()) as Record<string, unknown>) };
+  } catch {
+    return { running: false, walletAddress: u.walletAddress };
+  }
+}
+
+async function toggleKill(u: User, on: boolean): Promise<void> {
+  const token = baseEnv().OPS_TOKEN;
+  await fetch(`http://127.0.0.1:${u.port}/${on ? "kill" : "resume"}`, { method: "POST", headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(2000) }).catch(() => {});
+}
+
+function signup(): User {
+  const id = randomBytes(12).toString("hex");
+  const w = Wallet.createRandom();
+  const usedPorts = new Set(Object.values(users).map((u) => u.port));
+  let port = 8100;
+  while (usedPorts.has(port)) port += 1;
+  const u: User = { id, walletAddress: w.address, walletKey: w.privateKey, port, createdAt: Date.now() };
+  users[id] = u;
+  saveRegistry();
+  readUserConfig(id);
+  return u;
+}
+
+async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const c of req) chunks.push(c as Buffer);
+  return chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
+}
+
+function json(res: ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { "content-type": "application/json", "access-control-allow-origin": "*", "access-control-allow-headers": "content-type,x-helios-user", "access-control-allow-methods": "GET,POST,PUT,OPTIONS" });
+  res.end(JSON.stringify(body));
+}
+
+function currentUser(req: IncomingMessage): User | undefined {
+  const id = req.headers["x-helios-user"];
+  return typeof id === "string" ? users[id] : undefined;
+}
+
+const server = createServer(async (req, res) => {
+  const url = (req.url ?? "/").split("?")[0];
+  try {
+    if (req.method === "OPTIONS") return json(res, 204, {});
+
+    if (url === "/api/signup" && req.method === "POST") {
+      const u = signup();
+      return json(res, 200, { userId: u.id, walletAddress: u.walletAddress });
+    }
+
+    if (url.startsWith("/api/")) {
+      const u = currentUser(req);
+      if (!u) return json(res, 401, { error: "no account" });
+
+      if (url === "/api/me") return json(res, 200, await proxyState(u));
+      if (url === "/api/state") return json(res, 200, await proxyState(u));
+
+      if (url === "/api/config" && req.method === "GET") return json(res, 200, readUserConfig(u.id));
+      if (url === "/api/config" && req.method === "PUT") {
+        const body = await readBody(req);
+        const cfg = readUserConfig(u.id);
+        cfg.risk = { ...(cfg.risk as object), ...(body.risk as object) };
+        if (typeof body.startingCapitalUsd === "number") cfg.startingCapitalUsd = body.startingCapitalUsd;
+        if (typeof body.mode === "string") {
+          cfg.mode = body.mode;
+          if (body.mode === "mainnet") cfg.chain = { ...(cfg.chain as object), ...mainnetChain };
+          if (body.mode === "testnet") cfg.chain = { ...(cfg.chain as object), ...testnetChain };
+        }
+        writeFileSync(userConfigPath(u.id), JSON.stringify(cfg, null, 2));
+        return json(res, 200, cfg);
+      }
+
+      if (url === "/api/control" && req.method === "POST") {
+        const { action } = await readBody(req);
+        if (action === "start") startAgent(u);
+        else if (action === "stop") stopAgent(u.id);
+        else if (action === "kill") await toggleKill(u, true);
+        else if (action === "resume") await toggleKill(u, false);
+        else return json(res, 400, { error: "unknown action" });
+        return json(res, 200, { ok: true, action });
+      }
+      return json(res, 404, { error: "not found" });
+    }
+
+    return serveStatic(url, res);
+  } catch (err) {
+    json(res, 500, { error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+function serveStatic(url: string, res: ServerResponse): void {
+  const path = url === "/" ? "/index.html" : url;
+  const file = resolve(WEB_DIST, "." + path);
+  if (!file.startsWith(WEB_DIST) || !existsSync(file)) {
+    const index = resolve(WEB_DIST, "index.html");
+    if (existsSync(index)) {
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(readFileSync(index));
+      return;
+    }
+    res.writeHead(404);
+    res.end("build the web app: cd web && npm run build");
+    return;
+  }
+  const types: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
+  res.writeHead(200, { "content-type": types[file.slice(file.lastIndexOf("."))] ?? "application/octet-stream" });
+  res.end(readFileSync(file));
+}
+
+process.on("SIGTERM", () => {
+  for (const id of agents.keys()) stopAgent(id);
+  engine?.kill("SIGTERM");
+  process.exit(0);
+});
+
+server.listen(PORT, () => console.log(`control plane (multi-tenant) on http://127.0.0.1:${PORT}`));

@@ -7,12 +7,16 @@ It is deliberately **not** an LLM-in-the-loop agent: the decision path is explai
 ## Architecture
 
 ```
-            ┌──────────────── TypeScript core (Node, daemon) ────────────────┐
- Sense ───▶ Decide ───▶ [Go risk engine] ───▶ Execute ───▶ State ───▶ Record
- (CMC)      (FSM)        (HTTP, stateless)     (TWAK sign)  (SQLite)   (ERC-8004)
-            └──────────────────────── Ops: health + heartbeat ───────────────┘
-                                                  ▲
-                                    [Go watchdog] supervises liveness
+ [ Web app (React) ]  ── onboarding wizard + live dashboard + controls
+        │  /api
+ [ Control plane ]    ── create wallet · set rules · start/stop/pause · proxy state
+        │  spawns + supervises
+ ┌──────────────── TypeScript agent runtime (Node) ──────────────────┐
+ Sense ──▶ Decide ──▶ [Go risk engine] ──▶ Execute ──▶ State ──▶ Record
+ (CMC)     (FSM)       (HTTP, stateless)    (TWAK sign) (SQLite)  (ERC-8004)
+ └──────────────────────── Ops: health + dashboard API ─────────────┘
+                                   ▲
+                     [Go watchdog] supervises liveness
 ```
 
 ### Language choices (each region uses the genuinely best tool)
@@ -44,7 +48,23 @@ config.json           risk-rule config (single source of truth)
 docs/resolved.md      resolve-first findings
 ```
 
-## Run (paper mode)
+## Run the product (web app)
+
+The user-facing product is a web app (onboarding wizard → live dashboard) backed by a control plane that manages the agent. Users never touch code.
+
+```bash
+npm install
+cd web && npm install && npm run build && cd ..
+( cd risk-engine && go build -o bin/risk-engine . )      # one-time
+node --disable-warning=ExperimentalWarning control-plane/server.ts
+# open http://127.0.0.1:8090 → create wallet → set risk rules → Launch → watch the dashboard
+```
+
+The entry screen is a full-screen **landing page** (mouse-scrub hero video, typewriter intro, scroll-driven story of how Helios reads the market → trades within hard limits → proves itself on-chain). From there: **create self-custody agent wallet → set risk rules with sliders → fund it → Launch**. The dashboard shows live equity, return, drawdown, positions, decisions, and the on-chain identity, with **Pause &amp; flatten** / **Stop** controls. The control plane (`control-plane/server.ts`) spawns and supervises the agent runtime + Go risk engine and proxies state to the UI.
+
+For UI development with hot reload: `cd web && npm run dev` (proxies `/api` to the control plane on :8090).
+
+## Run the engine directly (paper mode)
 
 Requires Node >= 24 (native TypeScript + `node:sqlite`) and Go >= 1.26. For live modes also install the Trust Wallet CLI: `npm i -g @trustwallet/cli`.
 

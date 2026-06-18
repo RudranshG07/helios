@@ -4,7 +4,7 @@
   "staleMarketSeconds": 900,
   "startingCapitalUsd": 1000,
   "risk": {
-    "maxExposurePct": 0.80,
+    "maxExposurePct": 0.8,
     "maxPositionPctPerToken": 0.25,
     "maxTradeSizeUsd": 250,
     "hardDrawdownStopPct": 0.25,
@@ -16,7 +16,10 @@
     "perTradeCostBps": 30,
     "cooldownMinutes": 15,
     "trendThreshold": 0.3,
-    "allowedTokens": ["WBNB", "USDT"],
+    "allowedTokens": [
+      "WBNB",
+      "USDT"
+    ],
     "stableAsset": "USDT",
     "killSwitch": false
   },
