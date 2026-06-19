@@ -173,14 +173,14 @@ export class Store {
 
   getRecentLedger(limit: number): LedgerEntry[] {
     return this.db
-      .prepare("SELECT ts, regime, action, sizeUsd, realizedPnl, stateHash FROM ledger ORDER BY id DESC LIMIT ?")
+      .prepare("SELECT ts, regime, action, sizeUsd, realizedPnl, rationale, stateHash FROM ledger ORDER BY id DESC LIMIT ?")
       .all(limit) as unknown as LedgerEntry[];
   }
 
   appendLedger(entry: LedgerEntry): void {
     this.db
-      .prepare("INSERT INTO ledger (ts, regime, action, sizeUsd, realizedPnl, stateHash) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(entry.ts, entry.regime, entry.action, entry.sizeUsd, entry.realizedPnl, entry.stateHash);
+      .prepare("INSERT INTO ledger (ts, regime, action, sizeUsd, realizedPnl, rationale, stateHash) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(entry.ts, entry.regime, entry.action, entry.sizeUsd, entry.realizedPnl, entry.rationale, entry.stateHash);
   }
 
   getMeta(key: string): string | undefined {

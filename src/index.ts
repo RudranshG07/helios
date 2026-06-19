@@ -114,6 +114,7 @@ async function tick(
         action: `${trade.side} ${trade.token}`,
         sizeUsd: fill.notionalUsd,
         realizedPnl,
+        rationale: state.rationale,
         stateHash: hashState(state),
       });
     } catch (err) {

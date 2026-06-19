@@ -44,7 +44,8 @@ class Erc8004Recorder implements Recorder {
   async record(entry: LedgerEntry): Promise<void> {
     this.store.appendLedger(entry);
     const agentId = await this.ensureIdentity();
-    const value = `${entry.action}|${entry.sizeUsd}|${entry.realizedPnl}|${entry.stateHash}`;
+    const why = (entry.rationale ?? "").replace(/\|/g, "/").slice(0, 80);
+    const value = `${entry.action}|${entry.sizeUsd}|${entry.realizedPnl}|${why}|${entry.stateHash}`;
     await setMetadata(agentId, `t:${entry.ts}`, value, this.cfg.chain.erc8004Chain, process.env.TWAK_WALLET_PASSWORD);
   }
 
