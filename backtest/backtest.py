@@ -16,6 +16,7 @@ CFG = {
     "hardDrawdownStopPct": 0.25,
     "perTradeCostBps": 30,
     "trendThreshold": 0.3,
+    "rebalanceBandPct": 0.06,
     "startUsd": 1000.0,
 }
 
@@ -108,6 +109,8 @@ def run(prices):
         desired = target * equity
         held = qty * px
         delta = desired - held
+        if abs(delta) < CFG["rebalanceBandPct"] * equity:
+            continue
         size = min(abs(delta), CFG["maxTradeFrac"] * equity)
         if size < equity * 0.01:
             continue

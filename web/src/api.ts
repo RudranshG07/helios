@@ -3,8 +3,11 @@ export interface AgentState {
   status?: string;
   regime?: string;
   verdict?: string;
+  sentiment?: number;
+  rationale?: string;
   killSwitch?: boolean;
   walletAddress?: string | null;
+  owner?: string | null;
   agentId?: string | null;
   riskPolicyHash?: string;
   metrics?: {
@@ -53,6 +56,13 @@ export const api = {
     return r;
   },
   me: () => jsonFetch<AgentState>("/api/me"),
+  connect: async (address: string) => {
+    const r = await jsonFetch<{ userId: string; walletAddress: string; owner?: string }>("/api/connect", { method: "POST", body: JSON.stringify({ address }) });
+    localStorage.setItem(USER_KEY, r.userId);
+    return r;
+  },
+  balance: () => jsonFetch<{ address: string; bnb: number; unreachable?: boolean }>("/api/balance"),
+  withdraw: (to: string) => jsonFetch<{ ok: boolean; txHash?: string; amountBnb?: number; reason?: string }>("/api/withdraw", { method: "POST", body: JSON.stringify({ to }) }),
   state: () => jsonFetch<AgentState>("/api/state"),
   config: () => jsonFetch<Record<string, unknown>>("/api/config"),
   saveConfig: (body: unknown) => jsonFetch("/api/config", { method: "PUT", body: JSON.stringify(body) }),

@@ -32,6 +32,18 @@ sudo systemctl enable --now helios-risk helios-agent helios-watchdog
 - Localhost works here, so the default `config.json` URLs are correct.
 - Set `watchdog.restartCommand` in `config.json` to `systemctl restart helios-agent` (the watchdog needs permission to run it — run the watchdog unit as root or grant a polkit/sudoers rule).
 
+## Go public (so anyone can use it from a URL)
+
+The app is a normal web product (no terminal for end users): they open the URL, create/fund an agent wallet, set rules, launch, watch earnings, and withdraw. To put it on the internet:
+
+1. **Host the container** on any always-on box (a $5 VPS, Fly.io, Railway, Render). The control plane serves both the web app and the API on one port (8090).
+2. **Domain + TLS:** point a domain at it and terminate HTTPS (Caddy is one line: `helios.example.com { reverse_proxy localhost:8090 }`).
+3. **Secrets:** set `OPS_TOKEN`, CMC + TWAK creds in the host's env (never in the image).
+4. **Funding UX:** users deposit by sending BNB to their agent wallet (shown as address + QR in onboarding); they withdraw to any address from the dashboard.
+
+### The honest part (holding real users' money)
+Right now each user's agent wallet key is generated and held **server-side** (custodial). That's the simplest UX but a serious responsibility: for real public funds you need proper key management (HSM/MPC, not a JSON file), security review, withdrawal limits/monitoring, and — depending on jurisdiction — this is regulated activity (custody / money transmission). For the hackathon and demos this flow is complete and works; before taking strangers' real money, treat custody + compliance as a first-class workstream.
+
 ## Notes
 - Never commit `.env`. Keys are read from the environment at runtime.
 - Start in `paper`, graduate to `testnet`, then `mainnet` with small capital.

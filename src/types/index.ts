@@ -16,6 +16,7 @@ export interface RiskConfig {
   perTradeCostBps: number;
   cooldownMinutes: number;
   trendThreshold: number;
+  rebalanceBandPct: number;
   allowedTokens: string[];
   stableAsset: string;
   killSwitch: boolean;
@@ -70,6 +71,8 @@ export interface MarketState {
   technicals: { momentum: number; trend: number };
   crossAssetPressure: number;
   price: number;
+  sentiment: number;
+  rationale: string;
   stale: boolean;
 }
 
@@ -115,5 +118,6 @@ export interface LedgerEntry {
   action: string;
   sizeUsd: number;
   realizedPnl: number;
+  rationale: string;
   stateHash: string;
 }

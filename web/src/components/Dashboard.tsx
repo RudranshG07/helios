@@ -22,8 +22,33 @@ export function Dashboard({ initial, onStopped }: { initial: AgentState | null; 
     else setTimeout(() => api.state().then(setState).catch(() => {}), 500);
   }
 
+  async function withdraw() {
+    const dest = state?.owner;
+    const msg = dest ? `Withdraw all funds to your wallet ${dest}?` : "Withdraw all funds to your connected wallet?";
+    if (!window.confirm(msg)) return;
+    try {
+      const r = await api.withdraw(dest ?? "");
+      window.alert(r.ok ? `Withdrawn ${r.amountBnb} BNB to your wallet.\nTx: ${r.txHash}` : `Withdraw failed: ${r.reason ?? "error"}`);
+      if (r.ok) onStopped();
+    } catch (e) {
+      window.alert(`Withdraw failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  const deposited = m?.startingCapitalUsd ?? 0;
+  const profit = m ? m.equityUsd - deposited : 0;
+
   return (
     <div className="dashboard">
+      <div className="money">
+        <div className="money-cell"><div className="metric-label">Deposited</div><div className="money-val">${deposited.toFixed(2)}</div></div>
+        <div className="money-arrow">→</div>
+        <div className="money-cell"><div className="metric-label">Current value</div><div className="money-val">{m ? `$${m.equityUsd.toFixed(2)}` : "—"}</div></div>
+        <div className="money-cell"><div className="metric-label">Profit</div><div className={`money-val ${profit >= 0 ? "up" : "down"}`}>{m ? `${profit >= 0 ? "+" : ""}$${profit.toFixed(2)} (${ret}%)` : "—"}</div></div>
+        <div className="spacer" />
+        <button className="primary" onClick={withdraw}>Withdraw</button>
+      </div>
+
       <div className="status-row">
         <span className={`pill ${state?.running ? "ok" : "off"}`}>{state?.running ? "live" : "stopped"}</span>
         <span className="pill">{state?.regime ?? "—"}</span>
@@ -46,6 +71,16 @@ export function Dashboard({ initial, onStopped }: { initial: AgentState | null; 
         <Metric label="Win rate" value={m ? `${Math.round(m.winRate * 100)}%` : "—"} />
         <Metric label="Trades" value={m ? String(m.tradeCount) : "—"} />
       </div>
+
+      {state?.rationale && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3>AI analyst</h3>
+          <p style={{ fontSize: 14 }}>
+            {state.rationale}{" "}
+            <span className="muted">(sentiment {typeof state.sentiment === "number" ? state.sentiment.toFixed(2) : "—"})</span>
+          </p>
+        </div>
+      )}
 
       <div className="grid2">
         <div className="card">

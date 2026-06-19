@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
-import { Wallet } from "ethers";
+import { Wallet, JsonRpcProvider, formatEther, parseEther } from "ethers";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const BASE_CONFIG = resolve(ROOT, "config.json");
@@ -19,6 +19,7 @@ const testnetChain = { chainId: 97, twakChain: "smartchain-testnet", erc8004Chai
 
 interface User {
   id: string;
+  owner?: string;
   walletAddress: string;
   walletKey: string;
   port: number;
@@ -91,9 +92,9 @@ async function proxyState(u: User): Promise<Record<string, unknown>> {
   try {
     const res = await fetch(`http://127.0.0.1:${u.port}/state`, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) throw new Error();
-    return { running: true, walletAddress: u.walletAddress, ...((await res.json()) as Record<string, unknown>) };
+    return { running: true, walletAddress: u.walletAddress, owner: u.owner, ...((await res.json()) as Record<string, unknown>) };
   } catch {
-    return { running: false, walletAddress: u.walletAddress };
+    return { running: false, walletAddress: u.walletAddress, owner: u.owner };
   }
 }
 
@@ -102,17 +103,22 @@ async function toggleKill(u: User, on: boolean): Promise<void> {
   await fetch(`http://127.0.0.1:${u.port}/${on ? "kill" : "resume"}`, { method: "POST", headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(2000) }).catch(() => {});
 }
 
-function signup(): User {
+function signup(owner?: string): User {
   const id = randomBytes(12).toString("hex");
   const w = Wallet.createRandom();
   const usedPorts = new Set(Object.values(users).map((u) => u.port));
   let port = 8100;
   while (usedPorts.has(port)) port += 1;
-  const u: User = { id, walletAddress: w.address, walletKey: w.privateKey, port, createdAt: Date.now() };
+  const u: User = { id, owner, walletAddress: w.address, walletKey: w.privateKey, port, createdAt: Date.now() };
   users[id] = u;
   saveRegistry();
   readUserConfig(id);
   return u;
+}
+
+function connect(owner: string): User {
+  const existing = Object.values(users).find((u) => u.owner?.toLowerCase() === owner.toLowerCase());
+  return existing ?? signup(owner);
 }
 
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -141,12 +147,31 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { userId: u.id, walletAddress: u.walletAddress });
     }
 
+    if (url === "/api/connect" && req.method === "POST") {
+      const { address } = await readBody(req);
+      if (typeof address !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(address)) return json(res, 400, { error: "invalid wallet address" });
+      const u = connect(address);
+      return json(res, 200, { userId: u.id, walletAddress: u.walletAddress, owner: u.owner });
+    }
+
     if (url.startsWith("/api/")) {
       const u = currentUser(req);
       if (!u) return json(res, 401, { error: "no account" });
 
       if (url === "/api/me") return json(res, 200, await proxyState(u));
       if (url === "/api/state") return json(res, 200, await proxyState(u));
+
+      if (url === "/api/balance") {
+        const cfg = readUserConfig(u.id);
+        const rpc = ((cfg.chain as { rpcUrls?: string[] }).rpcUrls ?? ["https://bsc-dataseed.bnbchain.org"])[0];
+        try {
+          const provider = new JsonRpcProvider(rpc);
+          const bal = await provider.getBalance(u.walletAddress);
+          return json(res, 200, { address: u.walletAddress, bnb: Number(formatEther(bal)) });
+        } catch {
+          return json(res, 200, { address: u.walletAddress, bnb: 0, unreachable: true });
+        }
+      }
 
       if (url === "/api/config" && req.method === "GET") return json(res, 200, readUserConfig(u.id));
       if (url === "/api/config" && req.method === "PUT") {
@@ -161,6 +186,21 @@ const server = createServer(async (req, res) => {
         }
         writeFileSync(userConfigPath(u.id), JSON.stringify(cfg, null, 2));
         return json(res, 200, cfg);
+      }
+
+      if (url === "/api/withdraw" && req.method === "POST") {
+        const body = await readBody(req);
+        const to = u.owner ?? (typeof body.to === "string" ? body.to : "");
+        if (!/^0x[a-fA-F0-9]{40}$/.test(to)) return json(res, 400, { error: "no destination: connect a wallet (funds return to its owner)" });
+        stopAgent(u.id);
+        const cfg = readUserConfig(u.id);
+        const rpc = ((cfg.chain as { rpcUrls?: string[] }).rpcUrls ?? ["https://bsc-dataseed.bnbchain.org"])[0];
+        const provider = new JsonRpcProvider(rpc);
+        const bal = await provider.getBalance(u.walletAddress);
+        const gas = parseEther("0.0005");
+        if (bal <= gas) return json(res, 200, { ok: false, reason: "insufficient balance to withdraw" });
+        const tx = await new Wallet(u.walletKey, provider).sendTransaction({ to, value: bal - gas });
+        return json(res, 200, { ok: true, txHash: tx.hash, amountBnb: Number(formatEther(bal - gas)) });
       }
 
       if (url === "/api/control" && req.method === "POST") {

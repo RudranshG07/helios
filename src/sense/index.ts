@@ -22,6 +22,8 @@ export class MockSensor implements Sensor {
       technicals: { momentum: Math.random() * 2 - 1, trend: Math.random() * 2 - 1 },
       crossAssetPressure: Math.random() * 2 - 1,
       price: 600 + (Math.random() * 20 - 10),
+      sentiment: 0,
+      rationale: "",
       stale: false,
     };
   }
@@ -86,6 +88,8 @@ export class CmcSensor implements Sensor {
       technicals: { momentum: round4(momentum), trend: round4(trend) },
       crossAssetPressure: round4(crossAssetPressure),
       price,
+      sentiment: 0,
+      rationale: "",
       stale: !Number.isFinite(price) || price <= 0,
     };
   }

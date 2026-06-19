@@ -16,6 +16,7 @@ const cfg: RiskConfig = {
   perTradeCostBps: 30,
   cooldownMinutes: 15,
   trendThreshold: 0.3,
+  rebalanceBandPct: 0.06,
   allowedTokens: ["WBNB", "USDT"],
   stableAsset: "USDT",
   killSwitch: false,
@@ -30,6 +31,8 @@ function state(over: Partial<MarketState> = {}): MarketState {
     technicals: { momentum: 0.5, trend: 0.5 },
     crossAssetPressure: 0.5,
     price: 600,
+    sentiment: 0,
+    rationale: "",
     stale: false,
     ...over,
   };

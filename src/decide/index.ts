@@ -21,6 +21,7 @@ function conviction(state: MarketState, cfg: RiskConfig): number {
     ? 0.5 * t.trend + 0.3 * t.momentum + 0.2 * state.crossAssetPressure
     : -0.6 * t.momentum + 0.2 * state.crossAssetPressure;
 
+  score += 0.15 * (state.sentiment ?? 0);
   if (state.regime === "risk-on") score += 0.1;
   if (state.regime === "risk-off") score = Math.min(score, 0);
   return clamp(score, -1, 1);
@@ -61,8 +62,10 @@ function planTowardTarget(target: number, state: MarketState, portfolio: Portfol
   const primary = cfg.allowedTokens.find((t) => t !== cfg.stableAsset)!;
   const currentExposure = nonStableExposure(portfolio, cfg.stableAsset);
   const delta = target * portfolio.equityUsd - currentExposure;
-  const size = Math.min(Math.abs(delta), cfg.maxTradeSizeUsd);
 
+  if (Math.abs(delta) < cfg.rebalanceBandPct * portfolio.equityUsd) return { targetExposurePct: target, trades: [] };
+
+  const size = Math.min(Math.abs(delta), cfg.maxTradeSizeUsd);
   if (size < 1) return { targetExposurePct: target, trades: [] };
 
   const side = delta > 0 ? "buy" : "sell";

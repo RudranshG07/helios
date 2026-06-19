@@ -23,6 +23,7 @@ function validate(c: Config): void {
   if (!r.allowedTokens.includes(r.stableAsset)) fail("stableAsset must be in allowedTokens");
   if (r.allowedTokens.filter((t) => t !== r.stableAsset).length === 0) fail("need at least one non-stable allowed token");
   if (r.trendThreshold < 0) fail("trendThreshold must be >= 0");
+  if (r.rebalanceBandPct < 0) fail("rebalanceBandPct must be >= 0");
   if (r.minTradesPerDay < 0) fail("minTradesPerDay must be >= 0");
   if (c.chain.rpcUrls.length === 0) fail("at least one rpc url required");
   if (c.mode !== "paper") {

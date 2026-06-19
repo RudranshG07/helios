@@ -3,6 +3,7 @@ import { loadConfig } from "./config/index.ts";
 import { Store } from "./state/store.ts";
 import { createSensor, type Sensor } from "./sense/index.ts";
 import { decide, flattenPlan } from "./decide/index.ts";
+import { analyze } from "./analyst/claude.ts";
 import { evaluate } from "./risk/client.ts";
 import { createExecutor, type Executor } from "./execute/index.ts";
 import { createRecorder, type Recorder } from "./record/index.ts";
@@ -69,6 +70,11 @@ async function tick(
     return;
   }
 
+  const analysis = await analyze(state);
+  state.sentiment = analysis.sentiment;
+  state.rationale = analysis.rationale;
+  if (analysis.rationale) store.setMeta("lastRationale", analysis.rationale);
+
   store.markPrices({ [primary]: state.price });
   store.updateVolatility(state.price);
   store.refreshHighWater();
@@ -134,6 +140,7 @@ async function tick(
   log("tick", {
     regime: state.regime,
     verdict: verdict.verdict,
+    sentiment: round4(state.sentiment),
     drawdownPct: round4(verdict.drawdownPct),
     target: round4(plan.targetExposurePct),
     equityUsd: round2(after.equityUsd),
@@ -144,6 +151,8 @@ async function tick(
   ops.beat({
     regime: state.regime,
     verdict: verdict.verdict,
+    sentiment: round4(state.sentiment),
+    rationale: state.rationale,
     equityUsd: round2(after.equityUsd),
     drawdownPct: round4(verdict.drawdownPct),
     tradeCount: after.tradeCount,

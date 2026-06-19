@@ -16,6 +16,7 @@
     "perTradeCostBps": 30,
     "cooldownMinutes": 15,
     "trendThreshold": 0.3,
+    "rebalanceBandPct": 0.06,
     "allowedTokens": [
       "WBNB",
       "USDT"

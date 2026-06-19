@@ -47,6 +47,13 @@ button.ghost { background: transparent; }
 .kv { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
 .error { background: #3a1a1a; border: 1px solid #6a2a2a; color: #ff9b9b; padding: 12px; border-radius: 10px; margin-bottom: 16px; }
 
+.money { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; margin-bottom: 18px; }
+.money-cell { min-width: 120px; }
+.money-val { font-size: 26px; font-weight: 700; margin-top: 4px; }
+.money-val.up { color: var(--green); }
+.money-val.down { color: var(--red); }
+.money-arrow { color: var(--muted); font-size: 22px; }
+
 .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 22px; }
 .spacer { flex: 1; }
 .pill { font-size: 12px; padding: 5px 12px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
