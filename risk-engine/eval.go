@@ -3,10 +3,11 @@ package main
 import "fmt"
 
 type book struct {
-	value    map[string]float64
-	exposure float64
-	equity   float64
-	stable   string
+	value     map[string]float64
+	exposure  float64
+	equity    float64
+	dailyUsed float64
+	stable    string
 }
 
 func Evaluate(req EvalRequest) EvalResponse {
@@ -37,7 +38,7 @@ func Evaluate(req EvalRequest) EvalResponse {
 		resp.Notes = append(resp.Notes, fmt.Sprintf("trade count %d below target %d", pf.TradeCount, cfg.MinTradesTarget))
 	}
 
-	b := newBook(pf, cfg.StableAsset)
+	b := newBook(pf, cfg.StableAsset, req.DailyNotionalUsd)
 	allowed := tokenSet(cfg.AllowedTokens)
 
 	for _, t := range req.Plan.Trades {
@@ -77,6 +78,9 @@ func validate(t Trade, req EvalRequest, flatten bool, allowed map[string]bool, b
 		if t.SizeUsd > cfg.MaxTradeSizeUsd {
 			return "size exceeds max trade size"
 		}
+		if cfg.MaxDailyNotionalUsd > 0 && b.dailyUsed+t.SizeUsd > cfg.MaxDailyNotionalUsd {
+			return "daily notional cap exceeded"
+		}
 		if t.LiquidityUsd < cfg.MinLiquidityUsd {
 			return "liquidity below minimum"
 		}
@@ -98,8 +102,8 @@ func validate(t Trade, req EvalRequest, flatten bool, allowed map[string]bool, b
 	}
 }
 
-func newBook(pf Portfolio, stable string) *book {
-	b := &book{value: map[string]float64{}, equity: pf.EquityUsd, stable: stable}
+func newBook(pf Portfolio, stable string, dailyUsed float64) *book {
+	b := &book{value: map[string]float64{}, equity: pf.EquityUsd, dailyUsed: dailyUsed, stable: stable}
 	for _, p := range pf.Positions {
 		v := p.QtyBase * p.MarkPxUsd
 		b.value[p.Token] += v
@@ -118,6 +122,9 @@ func (b *book) apply(t Trade) {
 	b.value[t.Token] += delta
 	if t.Token != b.stable {
 		b.exposure += delta
+	}
+	if t.Side == SideBuy {
+		b.dailyUsed += t.SizeUsd
 	}
 }
 

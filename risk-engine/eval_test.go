@@ -128,6 +128,17 @@ func TestEnforcesExposureCap(t *testing.T) {
 	}
 }
 
+func TestEnforcesDailyNotionalCap(t *testing.T) {
+	cfg := baseConfig()
+	cfg.MaxDailyNotionalUsd = 300
+	pf := Portfolio{EquityUsd: 100000, HighWaterUsd: 100000, TradeCount: 30}
+	r := EvalRequest{NowUnix: 1_000_000, Portfolio: pf, Config: cfg, LastTrade: map[string]int64{}, DailyNotionalUsd: 250, Plan: TradePlan{Trades: []Trade{buy("WBNB", 100)}}}
+	resp := Evaluate(r)
+	if len(resp.Approved) != 0 || resp.Rejected[0].Reason != "daily notional cap exceeded" {
+		t.Fatalf("want daily cap rejection, got approved=%+v rejected=%+v", resp.Approved, resp.Rejected)
+	}
+}
+
 func TestCooldownBlocksRapidReentry(t *testing.T) {
 	pf := Portfolio{EquityUsd: 1000, HighWaterUsd: 1000, TradeCount: 30}
 	r := req(pf, TradePlan{Trades: []Trade{buy("WBNB", 100)}})

@@ -14,8 +14,10 @@ export interface RiskConfig {
   minLiquidityUsd: number;
   maxSlippageBps: number;
   perTradeCostBps: number;
+  maxDailyNotionalUsd: number;
   cooldownMinutes: number;
   trendThreshold: number;
+  minConviction: number;
   rebalanceBandPct: number;
   allowedTokens: string[];
   stableAsset: string;
@@ -42,6 +44,8 @@ export interface Config {
   tickIntervalSeconds: number;
   staleMarketSeconds: number;
   startingCapitalUsd: number;
+  recordTradesOnChain: boolean;
+  reputationThrottleSeconds: number;
   risk: RiskConfig;
   chain: ChainConfig;
   riskEngine: { url: string; timeoutMs: number; failClosed: boolean };
@@ -68,6 +72,7 @@ export interface MarketState {
   regime: Regime;
   riskFlags: string[];
   liquidityUsd: number;
+  token: string;
   technicals: { momentum: number; trend: number };
   crossAssetPressure: number;
   price: number;
@@ -96,6 +101,7 @@ export interface EvalRequest {
   plan: TradePlan;
   config: RiskConfig;
   lastTrade: Record<string, number>;
+  dailyNotionalUsd: number;
 }
 
 export interface Rejection {

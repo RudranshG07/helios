@@ -20,6 +20,7 @@ export interface SwapArgs {
   to: string;
   chain: string;
   slippagePct: number;
+  decimals?: number;
   password?: string;
 }
 
@@ -37,6 +38,7 @@ interface RawQuote {
 
 export async function twakSwap(args: SwapArgs, quoteOnly: boolean): Promise<SwapResult> {
   const cli = ["swap", "--usd", String(args.sizeUsd), args.from, args.to, "--chain", args.chain, "--slippage", String(args.slippagePct), "--json"];
+  if (args.decimals) cli.push("--decimals", String(args.decimals));
   if (quoteOnly) cli.push("--quote-only");
   else if (args.password) cli.push("--password", args.password);
 

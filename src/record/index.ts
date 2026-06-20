@@ -43,6 +43,7 @@ class Erc8004Recorder implements Recorder {
 
   async record(entry: LedgerEntry): Promise<void> {
     this.store.appendLedger(entry);
+    if (!this.cfg.recordTradesOnChain) return; // gas-saving: keep full ledger off-chain
     const agentId = await this.ensureIdentity();
     const why = (entry.rationale ?? "").replace(/\|/g, "/").slice(0, 80);
     const value = `${entry.action}|${entry.sizeUsd}|${entry.realizedPnl}|${why}|${entry.stateHash}`;
@@ -51,7 +52,7 @@ class Erc8004Recorder implements Recorder {
 
   async publishReputation(metrics: Record<string, number>): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
-    if (now - this.lastReputationUnix < 3600) return;
+    if (now - this.lastReputationUnix < this.cfg.reputationThrottleSeconds) return;
     this.lastReputationUnix = now;
 
     const agentId = await this.ensureIdentity();

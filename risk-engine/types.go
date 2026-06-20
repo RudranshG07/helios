@@ -48,6 +48,7 @@ type RiskConfig struct {
 	MinLiquidityUsd        float64  `json:"minLiquidityUsd"`
 	MaxSlippageBps         int      `json:"maxSlippageBps"`
 	PerTradeCostBps        int      `json:"perTradeCostBps"`
+	MaxDailyNotionalUsd    float64  `json:"maxDailyNotionalUsd"`
 	CooldownMinutes        int      `json:"cooldownMinutes"`
 	AllowedTokens          []string `json:"allowedTokens"`
 	StableAsset            string   `json:"stableAsset"`
@@ -55,11 +56,12 @@ type RiskConfig struct {
 }
 
 type EvalRequest struct {
-	NowUnix   int64            `json:"nowUnix"`
-	Portfolio Portfolio        `json:"portfolio"`
-	Plan      TradePlan        `json:"plan"`
-	Config    RiskConfig       `json:"config"`
-	LastTrade map[string]int64 `json:"lastTrade"`
+	NowUnix          int64            `json:"nowUnix"`
+	Portfolio        Portfolio        `json:"portfolio"`
+	Plan             TradePlan        `json:"plan"`
+	Config           RiskConfig       `json:"config"`
+	LastTrade        map[string]int64 `json:"lastTrade"`
+	DailyNotionalUsd float64          `json:"dailyNotionalUsd"`
 }
 
 type Rejection struct {

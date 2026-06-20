@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { loadConfig } from "./config/index.ts";
 import { Store } from "./state/store.ts";
 import { createSensor, type Sensor } from "./sense/index.ts";
-import { decide, flattenPlan } from "./decide/index.ts";
+import { decide, flattenPlan, rankByConviction } from "./decide/index.ts";
 import { analyze } from "./analyst/claude.ts";
 import { evaluate } from "./risk/client.ts";
 import { createExecutor, type Executor } from "./execute/index.ts";
@@ -10,6 +10,7 @@ import { createRecorder, type Recorder } from "./record/index.ts";
 import { OpsServer } from "./ops/health.ts";
 import { Alerter } from "./ops/alerts.ts";
 import { riskPolicyHash } from "./util/policy.ts";
+import { paidCmcCall } from "./x402/cmc.ts";
 import { errorLog, log } from "./util/log.ts";
 import type { Config, EvalRequest, MarketState } from "./types/index.ts";
 
@@ -27,6 +28,9 @@ async function main(): Promise<void> {
 
   log("starting", { mode: cfg.mode, healthPort: cfg.ops.healthPort, tick: cfg.tickIntervalSeconds });
   await alerter.send("startup", `started in ${cfg.mode} mode`);
+
+  const x402 = await paidCmcCall();
+  log("x402", { ok: x402.ok, settled: x402.settled ?? false, note: x402.note });
 
   let running = true;
   const stop = () => {
@@ -59,39 +63,41 @@ async function tick(
   alerter: Alerter,
 ): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
-  const state = await sensor.read();
-  const stale = state.stale || now - state.ts > cfg.staleMarketSeconds;
-  const primary = cfg.risk.allowedTokens.find((t) => t !== cfg.risk.stableAsset)!;
+  const states = (await sensor.read()).filter((s) => !s.stale && now - s.ts <= cfg.staleMarketSeconds);
 
-  if (stale) {
-    log("tick", { stale: true, regime: state.regime });
+  if (states.length === 0) {
+    log("tick", { stale: true });
     ops.beat({ stale: true, tradeCount: store.getPortfolio().tradeCount });
     await alerter.send("stale", "market data is stale; holding");
     return;
   }
 
-  const analysis = await analyze(state);
-  state.sentiment = analysis.sentiment;
-  state.rationale = analysis.rationale;
-  if (analysis.rationale) store.setMeta("lastRationale", analysis.rationale);
-
-  store.markPrices({ [primary]: state.price });
-  store.updateVolatility(state.price);
+  const priceByToken = Object.fromEntries(states.map((s) => [s.token, s.price]));
+  store.markPrices(priceByToken);
   store.refreshHighWater();
   store.updateMaxDrawdown();
   const portfolio = store.getPortfolio();
 
+  // AI analyst on the strongest deterministic candidate (one Claude call/tick)
+  const best = rankByConviction(states, cfg.risk)[0];
+  if (best) {
+    const analysis = await analyze(best);
+    best.sentiment = analysis.sentiment;
+    best.rationale = analysis.rationale;
+    if (analysis.rationale) store.setMeta("lastRationale", `${best.token}: ${analysis.rationale}`);
+  }
+
   const lastFill = store.lastFillUnix();
   const secondsSinceLastTrade = lastFill > 0 ? now - lastFill : Number.MAX_SAFE_INTEGER;
-  const volScale = store.volScale();
   const risk = store.killActive() ? { ...cfg.risk, killSwitch: true } : cfg.risk;
-  const plan = decide(state, portfolio, risk, { secondsSinceLastTrade, volScale });
+  const plan = decide(states, portfolio, risk, { secondsSinceLastTrade, volScale: 1 });
   const req: EvalRequest = {
     nowUnix: now,
     portfolio,
     plan,
     config: risk,
     lastTrade: store.lastTradeMap(),
+    dailyNotionalUsd: store.dailyNotionalUsd(now),
   };
   const verdict = await evaluate(cfg, req);
 
@@ -102,20 +108,20 @@ async function tick(
     await alerter.send("engine-down", "risk engine unreachable — no trades executed");
   }
 
-  const toExecute = verdict.flatten ? flattenPlan(state, portfolio, risk).trades : verdict.approved;
+  const toExecute = verdict.flatten ? flattenPlan(portfolio, risk).trades : verdict.approved;
   for (const trade of toExecute) {
     if (store.alreadyFilled(trade.clientOrderId)) continue;
     try {
-      const fill = await executor.execute(trade, state.price);
+      const fill = await executor.execute(trade, priceByToken[trade.token] ?? 0);
       const realizedPnl = store.applyFill(fill, now, trade.clientOrderId);
       await recorder.record({
         ts: now,
-        regime: state.regime,
+        regime: best?.regime ?? "neutral",
         action: `${trade.side} ${trade.token}`,
         sizeUsd: fill.notionalUsd,
         realizedPnl,
-        rationale: state.rationale,
-        stateHash: hashState(state),
+        rationale: best?.rationale ?? "",
+        stateHash: hashState(best ?? states[0]),
       });
     } catch (err) {
       errorLog("trade failed", err, { clientOrderId: trade.clientOrderId });
@@ -123,39 +129,43 @@ async function tick(
     }
   }
 
-  store.markPrices({ [primary]: state.price });
+  store.markPrices(priceByToken);
   store.refreshHighWater();
   store.updateMaxDrawdown();
   const after = store.getPortfolio();
+  const held = after.positions.filter((p) => p.token !== cfg.risk.stableAsset && p.qtyBase * p.markPxUsd >= 1).map((p) => p.token);
 
   ops.setSignal({
-    ts: state.ts,
-    regime: state.regime,
-    technicals: state.technicals,
-    crossAssetPressure: state.crossAssetPressure,
-    price: state.price,
+    ts: now,
+    bestToken: best?.token,
+    regime: best?.regime,
     targetExposurePct: round4(plan.targetExposurePct),
+    holding: held,
   });
   await recorder.publishReputation(store.metrics() as unknown as Record<string, number>);
 
   log("tick", {
-    regime: state.regime,
+    best: best?.token,
+    regime: best?.regime,
     verdict: verdict.verdict,
-    sentiment: round4(state.sentiment),
+    sentiment: round4(best?.sentiment ?? 0),
     drawdownPct: round4(verdict.drawdownPct),
     target: round4(plan.targetExposurePct),
     equityUsd: round2(after.equityUsd),
+    holding: held.join(",") || "stable",
     approved: verdict.approved.length,
     rejected: verdict.rejected.length,
     tradeCount: after.tradeCount,
   });
   ops.beat({
-    regime: state.regime,
+    bestToken: best?.token,
+    regime: best?.regime,
     verdict: verdict.verdict,
-    sentiment: round4(state.sentiment),
-    rationale: state.rationale,
+    sentiment: round4(best?.sentiment ?? 0),
+    rationale: best?.rationale ?? "",
     equityUsd: round2(after.equityUsd),
     drawdownPct: round4(verdict.drawdownPct),
+    holding: held,
     tradeCount: after.tradeCount,
   });
 }

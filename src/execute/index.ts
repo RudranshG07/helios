@@ -1,5 +1,6 @@
 import type { Config, Trade } from "../types/index.ts";
 import type { Fill } from "../state/store.ts";
+import { tokenBySymbol } from "../universe.ts";
 import { twakSwap } from "./twak.ts";
 
 export interface Executor {
@@ -19,21 +20,24 @@ class TwakExecutor implements Executor {
 
   async execute(trade: Trade): Promise<Fill> {
     const stable = this.cfg.risk.stableAsset;
-    const from = trade.side === "buy" ? stable : trade.token;
-    const to = trade.side === "buy" ? trade.token : stable;
+    const fromSym = trade.side === "buy" ? stable : trade.token;
+    const toSym = trade.side === "buy" ? trade.token : stable;
+    const fromTok = tokenBySymbol(fromSym);
+    const toTok = tokenBySymbol(toSym);
     const args = {
       sizeUsd: trade.sizeUsd,
-      from,
-      to,
+      from: fromTok?.address ?? fromSym,
+      to: toTok?.address ?? toSym,
       chain: this.cfg.chain.twakChain,
       slippagePct: trade.maxSlippageBps / 100,
+      decimals: fromTok?.decimals,
       password: process.env.TWAK_WALLET_PASSWORD,
     };
 
     const quote = await twakSwap(args, true);
     const capPct = trade.maxSlippageBps / 100;
     if (Number.isFinite(quote.priceImpactPct) && quote.priceImpactPct > capPct) {
-      throw new Error(`slippage guard: price impact ${quote.priceImpactPct}% exceeds cap ${capPct}% for ${from}->${to}`);
+      throw new Error(`slippage guard: price impact ${quote.priceImpactPct}% exceeds cap ${capPct}% for ${fromSym}->${toSym}`);
     }
 
     const result = await twakSwap(args, false);

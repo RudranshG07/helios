@@ -171,6 +171,11 @@ export class Store {
     return row?.ts ?? 0;
   }
 
+  dailyNotionalUsd(nowUnix: number): number {
+    const row = this.db.prepare("SELECT COALESCE(SUM(notionalUsd), 0) AS total FROM fills WHERE ts >= ?").get(nowUnix - 86_400) as unknown as { total: number } | undefined;
+    return row?.total ?? 0;
+  }
+
   getRecentLedger(limit: number): LedgerEntry[] {
     return this.db
       .prepare("SELECT ts, regime, action, sizeUsd, realizedPnl, rationale, stateHash FROM ledger ORDER BY id DESC LIMIT ?")

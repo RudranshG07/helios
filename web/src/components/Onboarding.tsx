@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api, getUserId, type RiskRules } from "../api.ts";
-import { connectInjected, hasWallet } from "../wallet.ts";
+import { connectWallet, hasWallet } from "../wallet.ts";
 
 const defaults: RiskRules = {
   maxExposurePct: 0.8,
@@ -55,8 +55,8 @@ export function Onboarding({ onLaunched, preset }: { onLaunched: () => void; pre
       if (getUserId()) {
         setWallet((await api.me()).walletAddress ?? null);
       } else if (useWallet) {
-        const addr = await connectInjected();
-        if (!addr) throw new Error("no browser wallet found — install Trust Wallet/MetaMask or continue in demo mode");
+        const addr = await connectWallet();
+        if (!addr) throw new Error("no wallet found — install Trust Wallet/MetaMask or continue in demo mode");
         setWallet((await api.connect(addr)).walletAddress);
       } else {
         setWallet((await api.signup()).walletAddress);
