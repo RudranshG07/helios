@@ -33,26 +33,38 @@ const SHOWCASE_SEED_USD = 10.95; // on-chain USDT the agent was funded with
 const ERC20_ABI = ["function balanceOf(address) view returns (uint256)"];
 let scCache: { ts: number; data: Record<string, unknown> } | null = null;
 
-async function priceUsd(symbol: string): Promise<number> {
-  if (symbol === STABLE.symbol) return 1;
+// Prices via CoinMarketCap (Binance geo-blocks US cloud IPs like Render).
+async function cmcPrices(): Promise<Map<number, number>> {
+  const map = new Map<number, number>();
+  const key = baseEnv().CMC_API_KEY;
+  if (!key) return map;
   try {
-    const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}USDT`, { signal: AbortSignal.timeout(6000) });
-    const d = (await r.json()) as { price?: string };
-    return d.price ? Number(d.price) : 0;
+    const ids = UNIVERSE.map((t) => t.cmcId).join(",");
+    const r = await fetch(`https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest?id=${ids}&convert=USD`, {
+      headers: { "X-CMC_PRO_API_KEY": key },
+      signal: AbortSignal.timeout(8000),
+    });
+    const d = (await r.json()) as { data?: Record<string, { quote?: { USD?: { price?: number } } }> };
+    for (const t of UNIVERSE) {
+      const px = d.data?.[String(t.cmcId)]?.quote?.USD?.price;
+      if (typeof px === "number") map.set(t.cmcId, px);
+    }
   } catch {
-    return 0;
+    /* leave map empty */
   }
+  return map;
 }
 
 async function onchainPortfolio(wallet: string): Promise<{ equityUsd: number; positions: { token: string; qtyBase: number; markPxUsd: number }[] } | null> {
   try {
     const provider = new JsonRpcProvider(mainnetChain.rpcUrls[0]);
+    const prices = await cmcPrices();
     const positions: { token: string; qtyBase: number; markPxUsd: number }[] = [];
     let equity = 0;
     const tokens = [STABLE, ...UNIVERSE];
     const results = await Promise.all(tokens.map(async (t) => {
       const bal = Number(await new Contract(t.address, ERC20_ABI, provider).balanceOf(wallet)) / 10 ** t.decimals;
-      const px = bal > 0 ? await priceUsd(t.symbol) : 0;
+      const px = t.symbol === STABLE.symbol ? 1 : prices.get(t.cmcId) ?? 0;
       return { t, bal, px };
     }));
     for (const { t, bal, px } of results) {
