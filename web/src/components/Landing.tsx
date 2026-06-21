@@ -168,7 +168,7 @@ export function Landing({ onStart, onDocs }: { onStart: (services?: string[]) =>
                 {!done && <span className="inline-block w-[3px] h-[0.95em] bg-white align-middle ml-[3px] animate-blink" />}
               </motion.h1>
               <motion.p custom={2} initial="hidden" animate="visible" variants={fadeUp} className="text-lg md:text-xl text-white/55 leading-relaxed mb-9 max-w-xl">
-                Helios reads the market, decides, and trades on-chain — autonomously, within the hard risk limits you set.
+                A regime-adaptive, conviction-gated rotation agent — momentum or mean-reversion as the market shifts, deploying only on high conviction, every move risk-bounded and proven on-chain.
               </motion.p>
 
               <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="mb-10 flex flex-wrap gap-3">
