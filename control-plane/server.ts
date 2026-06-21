@@ -3,8 +3,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
-import { Wallet, JsonRpcProvider, formatEther, parseEther } from "ethers";
+import { Wallet, JsonRpcProvider, formatEther, parseEther, Contract } from "ethers";
 import { Store } from "../src/state/store.ts";
+import { UNIVERSE, STABLE } from "../src/universe.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const BASE_CONFIG = resolve(ROOT, "config.json");
@@ -28,23 +29,89 @@ const SHOWCASE = {
   fundTx: "0xeae3774af67bb6c99d9f2baf5720382a8987421385e07c72938608a71606d17e",
 };
 
-function showcase(): Record<string, unknown> {
+const SHOWCASE_SEED_USD = 10.95; // on-chain USDT the agent was funded with
+const ERC20_ABI = ["function balanceOf(address) view returns (uint256)"];
+let scCache: { ts: number; data: Record<string, unknown> } | null = null;
+
+async function priceUsd(symbol: string): Promise<number> {
+  if (symbol === STABLE.symbol) return 1;
+  try {
+    const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}USDT`, { signal: AbortSignal.timeout(6000) });
+    const d = (await r.json()) as { price?: string };
+    return d.price ? Number(d.price) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function onchainPortfolio(wallet: string): Promise<{ equityUsd: number; positions: { token: string; qtyBase: number; markPxUsd: number }[] } | null> {
+  try {
+    const provider = new JsonRpcProvider(mainnetChain.rpcUrls[0]);
+    const positions: { token: string; qtyBase: number; markPxUsd: number }[] = [];
+    let equity = 0;
+    const tokens = [STABLE, ...UNIVERSE];
+    const results = await Promise.all(tokens.map(async (t) => {
+      const bal = Number(await new Contract(t.address, ERC20_ABI, provider).balanceOf(wallet)) / 10 ** t.decimals;
+      const px = bal > 0 ? await priceUsd(t.symbol) : 0;
+      return { t, bal, px };
+    }));
+    for (const { t, bal, px } of results) {
+      const val = bal * px;
+      if (t.symbol === STABLE.symbol || val >= 0.5) {
+        positions.push({ token: t.symbol, qtyBase: bal, markPxUsd: px });
+        equity += val;
+      }
+    }
+    return { equityUsd: equity, positions };
+  } catch {
+    return null;
+  }
+}
+
+async function showcase(): Promise<Record<string, unknown>> {
+  if (scCache && Date.now() - scCache.ts < 20_000) return scCache.data;
   let metrics: Record<string, unknown> | null = null;
   let equityHistory: { ts: number; equityUsd: number }[] = [];
   let positions: { token: string; qtyBase: number; markPxUsd: number }[] = [];
+  let live = false;
   try {
     const dbPath = process.env.HELIOS_DB ?? resolve(DATA, "helios.db");
     if (existsSync(dbPath)) {
       const cfg = JSON.parse(readFileSync(BASE_CONFIG, "utf8"));
       const store = new Store(dbPath, cfg.risk.stableAsset);
-      metrics = store.metrics() as unknown as Record<string, unknown>;
-      equityHistory = store.getEquityHistory(200);
-      positions = store.getPortfolio().positions.map((p) => ({ token: p.token, qtyBase: p.qtyBase, markPxUsd: p.markPxUsd }));
+      const m = store.metrics();
+      if (m.tradeCount > 0) {
+        metrics = m as unknown as Record<string, unknown>;
+        equityHistory = store.getEquityHistory(200);
+        positions = store.getPortfolio().positions.map((p) => ({ token: p.token, qtyBase: p.qtyBase, markPxUsd: p.markPxUsd }));
+        live = true;
+      }
     }
   } catch {
     metrics = null;
   }
-  return { ...SHOWCASE, live: metrics !== null, metrics, equityHistory, positions };
+  // no local trade data (e.g. hosted backend) → read the real on-chain wallet
+  if (!live) {
+    const oc = await onchainPortfolio(SHOWCASE.wallet);
+    if (oc) {
+      positions = oc.positions;
+      const held = oc.positions.filter((p) => p.token !== STABLE.symbol);
+      live = held.length > 0;
+      metrics = {
+        startingCapitalUsd: SHOWCASE_SEED_USD,
+        equityUsd: oc.equityUsd,
+        totalReturnPct: SHOWCASE_SEED_USD > 0 ? (oc.equityUsd - SHOWCASE_SEED_USD) / SHOWCASE_SEED_USD : 0,
+        realizedPnlUsd: 0,
+        maxDrawdownPct: 0,
+        winRate: 0,
+        profitFactor: 0,
+        tradeCount: live ? 1 : 0,
+      };
+    }
+  }
+  const data = { ...SHOWCASE, live, metrics, equityHistory, positions };
+  scCache = { ts: Date.now(), data };
+  return data;
 }
 
 interface User {
@@ -206,7 +273,7 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { userId: u.id, walletAddress: u.walletAddress, owner: u.owner });
     }
 
-    if (url === "/api/showcase" && req.method === "GET") return json(res, 200, showcase());
+    if (url === "/api/showcase" && req.method === "GET") return json(res, 200, await showcase());
 
     if (url.startsWith("/api/")) {
       const u = currentUser(req);
