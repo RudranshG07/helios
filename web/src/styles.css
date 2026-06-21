@@ -84,3 +84,12 @@ th { color: var(--muted); font-weight: 500; }
 .docs .card ul { margin: 10px 0 0; padding-left: 18px; }
 .docs .card li { margin: 5px 0; }
 .metric-value, .money-val, .card h3 { font-family: var(--font-heading); letter-spacing: -0.01em; }
+
+.chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; margin-bottom: 12px; padding-right: 4px; }
+.chat-msg { font-size: 13px; line-height: 1.5; padding: 8px 11px; border-radius: 10px; max-width: 88%; }
+.chat-msg.agent { background: var(--bg); border: 1px solid var(--border, #23262e); align-self: flex-start; }
+.chat-msg.you { background: var(--accent); color: #000; align-self: flex-end; }
+.chat-msg.muted { opacity: 0.6; }
+.chat-input { display: flex; gap: 8px; }
+.chat-input input { flex: 1; background: var(--bg); border: 1px solid var(--border, #23262e); color: var(--text); border-radius: 10px; padding: 9px 12px; font-size: 13px; font-family: var(--font-body); }
+.chat-input input:focus { outline: none; border-color: var(--accent); }

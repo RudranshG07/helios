@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, type AgentState } from "../api.ts";
 import { EquityChart } from "./EquityChart.tsx";
+import { CandleChart } from "./CandleChart.tsx";
+import { AgentChat } from "./AgentChat.tsx";
 
 export function Dashboard({ initial, onStopped }: { initial: AgentState | null; onStopped: () => void }) {
   const [state, setState] = useState<AgentState | null>(initial);
@@ -73,20 +75,34 @@ export function Dashboard({ initial, onStopped }: { initial: AgentState | null; 
         <Metric label="Trades" value={m ? String(m.tradeCount) : "—"} />
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h3>Equity curve {state?.holding?.length ? `· holding ${state.holding.join(", ")}` : "· in stable"}</h3>
-        <EquityChart points={state?.equityHistory ?? []} />
+      <div className="grid2" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <h3>Price {state?.bestToken ? `· ${state.bestToken}` : ""}</h3>
+          <CandleChart token={state?.holding?.[0] ?? state?.bestToken} />
+        </div>
+        <div className="card">
+          <h3>Equity curve {state?.holding?.length ? `· holding ${state.holding.join(", ")}` : "· in stable"}</h3>
+          <EquityChart points={state?.equityHistory ?? []} />
+        </div>
       </div>
 
-      {state?.rationale && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3>AI analyst</h3>
-          <p style={{ fontSize: 14 }}>
-            {state.rationale}{" "}
-            <span className="muted">(sentiment {typeof state.sentiment === "number" ? state.sentiment.toFixed(2) : "—"})</span>
-          </p>
-        </div>
-      )}
+      <div className="grid2" style={{ marginBottom: 16 }}>
+        {state?.rationale ? (
+          <div className="card">
+            <h3>AI analyst</h3>
+            <p style={{ fontSize: 14 }}>
+              {state.rationale}{" "}
+              <span className="muted">(sentiment {typeof state.sentiment === "number" ? state.sentiment.toFixed(2) : "—"})</span>
+            </p>
+          </div>
+        ) : (
+          <div className="card">
+            <h3>AI analyst</h3>
+            <p className="muted" style={{ fontSize: 14 }}>Waiting for the first signal read…</p>
+          </div>
+        )}
+        <AgentChat />
+      </div>
 
       <div className="grid2">
         <div className="card">

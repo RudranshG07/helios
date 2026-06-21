@@ -121,6 +121,28 @@ function connect(owner: string): User {
   return existing ?? signup(owner);
 }
 
+async function chatWithClaude(message: string, state: Record<string, unknown>): Promise<string> {
+  const env = baseEnv();
+  const key = env.ANTHROPIC_API_KEY ?? env.CLAUDE_API_KEY;
+  if (!key) return "AI chat isn't configured yet (no Claude key set).";
+  const ctx = JSON.stringify({ running: state.running, regime: state.regime, verdict: state.verdict, bestToken: state.bestToken, holding: state.holding, metrics: state.metrics, rationale: state.rationale });
+  const system =
+    "You are Helios, an autonomous, self-custody crypto trading agent on BNB Chain. You read CoinMarketCap signals, rotate into the strongest eligible token only on strong conviction, and gate every trade through a risk engine. Answer the user's question about your decisions, strategy, or current status in 1-3 concise sentences, grounded in the live state JSON. Be direct and honest; never promise profit or give financial guarantees.";
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: env.CLAUDE_MODEL ?? "claude-haiku-4-5-20251001", max_tokens: 320, system, messages: [{ role: "user", content: `Live state: ${ctx}\n\nQuestion: ${message}` }] }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return `(chat error ${res.status})`;
+    const d = (await res.json()) as { content?: { text?: string }[] };
+    return d.content?.[0]?.text ?? "(no reply)";
+  } catch (e) {
+    return `(chat failed: ${e instanceof Error ? e.message : String(e)})`;
+  }
+}
+
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
@@ -160,6 +182,12 @@ const server = createServer(async (req, res) => {
 
       if (url === "/api/me") return json(res, 200, await proxyState(u));
       if (url === "/api/state") return json(res, 200, await proxyState(u));
+
+      if (url === "/api/chat" && req.method === "POST") {
+        const { message } = await readBody(req);
+        if (typeof message !== "string" || !message.trim()) return json(res, 400, { error: "empty message" });
+        return json(res, 200, { reply: await chatWithClaude(message, await proxyState(u)) });
+      }
 
       if (url === "/api/balance") {
         const cfg = readUserConfig(u.id);

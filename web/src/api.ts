@@ -72,6 +72,7 @@ export const api = {
     return r;
   },
   balance: () => jsonFetch<{ address: string; bnb: number; unreachable?: boolean }>("/api/balance"),
+  chat: (message: string) => jsonFetch<{ reply: string }>("/api/chat", { method: "POST", body: JSON.stringify({ message }) }),
   withdraw: (to: string) => jsonFetch<{ ok: boolean; txHash?: string; amountBnb?: number; reason?: string }>("/api/withdraw", { method: "POST", body: JSON.stringify({ to }) }),
   state: () => jsonFetch<AgentState>("/api/state"),
   config: () => jsonFetch<Record<string, unknown>>("/api/config"),

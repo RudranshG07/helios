@@ -14,10 +14,31 @@ import { paidCmcCall } from "./x402/cmc.ts";
 import { errorLog, log } from "./util/log.ts";
 import type { Config, EvalRequest, MarketState } from "./types/index.ts";
 
+async function readOnchainStableUsd(cfg: Config): Promise<number> {
+  const address = process.env.TWAK_WALLET_ADDRESS;
+  if (!address) return 0;
+  const rpc = cfg.chain.rpcUrls[0];
+  if (!rpc) return 0;
+  try {
+    const { JsonRpcProvider, Contract } = await import("ethers");
+    const { STABLE } = await import("./universe.ts");
+    const provider = new JsonRpcProvider(rpc);
+    const erc20 = new Contract(STABLE.address, ["function balanceOf(address) view returns (uint256)"], provider);
+    const raw: bigint = await erc20.balanceOf(address);
+    const usd = Number(raw) / 10 ** STABLE.decimals;
+    log("seed", { source: "onchain", stable: STABLE.symbol, usd });
+    return usd;
+  } catch (err) {
+    errorLog("seed-failed", err);
+    return 0;
+  }
+}
+
 async function main(): Promise<void> {
   const cfg = loadConfig();
   const store = new Store(process.env.HELIOS_DB ?? "data/helios.db", cfg.risk.stableAsset);
-  store.initialize(cfg.startingCapitalUsd);
+  const seedUsd = cfg.mode === "paper" ? cfg.startingCapitalUsd : await readOnchainStableUsd(cfg);
+  store.initialize(seedUsd);
 
   const sensor = createSensor(cfg);
   const executor = createExecutor(cfg);
