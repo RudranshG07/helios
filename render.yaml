@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: helios
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/showcase
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "8090"
+      - key: CMC_API_KEY
+        sync: false
+      - key: CMC_MCP_API_KEY
+        sync: false
+      - key: TWAK_ACCESS_ID
+        sync: false
+      - key: TWAK_HMAC_SECRET
+        sync: false
+      - key: TWAK_WALLET_ADDRESS
+        sync: false
+      - key: TWAK_WALLET_PASSWORD
+        sync: false
+      - key: FALLBACK_PRIVATE_KEY
+        sync: false
+      - key: FALLBACK_ADDRESS
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPS_TOKEN
+        sync: false
+    disk:
+      name: helios-data
+      mountPath: /app/data
+      sizeGB: 1

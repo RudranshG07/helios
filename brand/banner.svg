@@ -1,0 +1,79 @@
+<svg width="1500" height="500" viewBox="0 0 1500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c0f13"/>
+      <stop offset="60%" stop-color="#0a0b0d"/>
+      <stop offset="100%" stop-color="#080a0c"/>
+    </linearGradient>
+    <linearGradient id="bray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6ee7b7"/>
+      <stop offset="100%" stop-color="#37c9a0"/>
+    </linearGradient>
+    <radialGradient id="bcore" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#d6fff0"/>
+      <stop offset="55%" stop-color="#6ee7b7"/>
+      <stop offset="100%" stop-color="#2fae89"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6ee7b7" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#6ee7b7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6ee7b7" stop-opacity="0"/>
+      <stop offset="20%" stop-color="#6ee7b7" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#6ee7b7" stop-opacity="0.9"/>
+    </linearGradient>
+    <filter id="bglow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1500" height="500" fill="url(#bbg)"/>
+
+  <!-- faint grid -->
+  <g stroke="#ffffff" stroke-opacity="0.035">
+    <path d="M0 125 H1500 M0 250 H1500 M0 375 H1500"/>
+    <path d="M250 0 V500 M500 0 V500 M750 0 V500 M1000 0 V500 M1250 0 V500"/>
+  </g>
+
+  <!-- rising equity curve (kept clear of the wordmark) -->
+  <g filter="url(#bglow)">
+    <path d="M70 440 C 240 432, 410 420, 600 398 S 860 300, 1010 248 S 1250 150, 1430 92" fill="none" stroke="url(#line)" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="1430" cy="92" r="7" fill="#6ee7b7"/>
+  </g>
+
+  <!-- sun mark on the right -->
+  <g transform="translate(1230 250)">
+    <circle r="230" fill="url(#halo)"/>
+    <g filter="url(#bglow)">
+      <g fill="url(#bray)">
+        <g>
+          <path d="M0 -150 L15 -90 L0 -74 L-15 -90 Z"/>
+          <path d="M0 150 L15 90 L0 74 L-15 90 Z"/>
+          <path d="M-150 0 L-90 -15 L-74 0 L-90 15 Z"/>
+          <path d="M150 0 L90 -15 L74 0 L90 15 Z"/>
+        </g>
+        <g transform="rotate(45)">
+          <path d="M0 -136 L12 -82 L0 -68 L-12 -82 Z" opacity="0.85"/>
+          <path d="M0 136 L12 82 L0 68 L-12 82 Z" opacity="0.85"/>
+          <path d="M-136 0 L-82 -12 L-68 0 L-82 12 Z" opacity="0.85"/>
+          <path d="M136 0 L82 -12 L68 0 L82 12 Z" opacity="0.85"/>
+        </g>
+      </g>
+      <circle r="52" fill="url(#bcore)"/>
+      <path d="M-25 14 L-7 -5 L5 7 L25 -18" fill="none" stroke="#0a0b0d" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="25" cy="-18" r="6" fill="#0a0b0d"/>
+    </g>
+  </g>
+
+  <!-- wordmark + tagline -->
+  <g transform="translate(90 210)">
+    <text x="0" y="0" font-family="'Bricolage Grotesque','Hanken Grotesk',Arial,sans-serif" font-size="104" font-weight="700" fill="#f3f5f4" letter-spacing="-2">Helios</text>
+    <g transform="translate(406 -52)" fill="#6ee7b7">
+      <path d="M0 -30 C3 -9 9 -3 30 0 C9 3 3 9 0 30 C-3 9 -9 3 -30 0 C-9 -3 -3 -9 0 -30 Z"/>
+    </g>
+    <text x="3" y="62" font-family="'Hanken Grotesk',Arial,sans-serif" font-size="30" font-weight="500" fill="#9aa3ad" letter-spacing="0.5">Let your capital trade itself.</text>
+    <text x="3" y="112" font-family="'Geist Mono',monospace" font-size="19" fill="#5f6b6a" letter-spacing="1">autonomous · self-custody · verifiable on BNB Chain</text>
+  </g>
+</svg>
