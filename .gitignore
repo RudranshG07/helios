@@ -16,3 +16,7 @@ CLAUDE.md
 bnbhack-master-document.md
 .claude/
 .mcp.json
+
+# docs: keep only the root README
+*.md
+!/README.md

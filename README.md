@@ -1,115 +1,67 @@
-# Helios — Autonomous Trading Agent (BNB Hack, Track 1)
+# Helios ✳︎
 
-A **deterministic, rule-based finite-state-machine trading agent** for BSC. It senses market signals, decides a target exposure through a fixed three-gear state machine, validates every trade through a hard risk gate, executes on-chain, and writes each decision to an on-chain verifiable ledger — unattended, for the full judged trading week.
+**A regime-adaptive, conviction-gated rotation agent — momentum or mean-reversion as the market shifts, deploying only on high conviction, every move risk-bounded and proven on-chain.**
 
-It is deliberately **not** an LLM-in-the-loop agent: the decision path is explainable and reproducible, gated by a drawdown circuit-breaker set below the disqualification cap.
+Helios is a deterministic, self-custody crypto trading agent running live on BNB Chain. It reads the market, decides, executes, and proves itself — autonomously, within the hard risk limits you set.
+
+---
+
+## What makes it different
+
+Most "AI trading agents" are a language model that reads a headline and fires a swap: directional, non-reproducible, and prone to either blowing up or freezing. Helios is the opposite — a **deterministic decision engine**. Given the same market input it always produces the same decision, and every decision is auditable.
+
+- **Deterministic, not a gambling LLM.** A Claude analyst contributes a sentiment read, but it only ever *advises*; deterministic logic and an isolated risk engine decide and gate.
+- **Conviction-gated rotation.** Each cycle it scores a basket of eligible tokens, ranks them by conviction, and rotates into the single strongest — but only when conviction is genuinely high. Otherwise it waits in stable USDT.
+- **Regime-adaptive.** Momentum when an asset trends, mean-reversion when it ranges, blended with cross-asset pressure and sentiment.
+- **Risk-bounded by design.** A separate, unit-tested Go risk engine clears every trade against a hard drawdown breaker, exposure caps, per-trade and daily limits, slippage, and a cooldown. Fail-closed.
+- **Self-custody.** You connect your own wallet; the agent signs through the Trust Wallet Agent Kit and can only ever return funds to you.
+- **Verifiable on-chain.** Decisions, realized PnL, and a hashed risk policy are written to an ERC-8004 identity on BNB Chain — auditable, not just claimed.
+
+## How it works
+
+Each cycle runs a closed five-stage loop:
+
+1. **Sense** — pull market signals (regime, technicals, derivatives, sentiment) for the eligible token universe, with a staleness guard.
+2. **Decide** — score every token, rank by conviction, choose the strongest, or stay in stable if none clears the gate.
+3. **Risk gate** — the Go risk engine validates the trade against every declared limit. No pass, no trade.
+4. **Execute** — sign and swap on BSC through your self-custody wallet, with a pre-trade slippage check.
+5. **Record** — write the decision and PnL to the on-chain ERC-8004 identity, persist locally, and loop — 24/7.
 
 ## Architecture
 
-```
- [ Web app (React) ]  ── onboarding wizard + live dashboard + controls
-        │  /api
- [ Control plane ]    ── create wallet · set rules · start/stop/pause · proxy state
-        │  spawns + supervises
- ┌──────────────── TypeScript agent runtime (Node) ──────────────────┐
- Sense ──▶ Decide ──▶ [Go risk engine] ──▶ Execute ──▶ State ──▶ Record
- (CMC)     (FSM)       (HTTP, stateless)    (TWAK sign) (SQLite)  (ERC-8004)
- └──────────────────────── Ops: health + dashboard API ─────────────┘
-                                   ▲
-                     [Go watchdog] supervises liveness
-```
+| Region | Tech | Why |
+|---|---|---|
+| 24/7 daemon (sense → decide → execute → record) | TypeScript (Node, native TS + `node:sqlite`) | zero native deps, fast to iterate |
+| Risk engine | Go, stateless HTTP service | isolated so the safety check can't be skipped by strategy bugs |
+| Watchdog | Go | supervises daemon health, auto-restarts |
+| Control plane | TypeScript | multi-tenant API; serves the web app, spawns per-user agents |
+| Web app | React + Vite | live dashboard, price candles, equity curve, AI chat |
+| Backtest harness | Python | validates the strategy on real data before risking capital |
 
-### Language choices (each region uses the genuinely best tool)
-- **TypeScript (Node) core** — daemon loop, chain (ethers), CMC, decide/FSM, execute, record, state. Integration-heavy work where TS has the best SDK coverage and fastest build.
-- **Go risk engine** — the DQ spine (drawdown breaker, caps, cost model, cooldown, kill-switch). A **stateless** HTTP service; the core passes a portfolio snapshot + candidate plan and gets back an approve/reject verdict. Isolated, deterministic, exhaustively unit-tested. Every trade must clear it; fail-closed if unreachable.
-- **Go watchdog** — standalone static binary that supervises the Node daemon (health/heartbeat poll, auto-restart, alerts). Hands back the single-binary reliability given up by choosing a TS core.
-- **TWAK CLI** — transaction signing (self-custody, Trust Wallet Agent Kit), behind a `Signer` interface with native ethers signing as fallback.
-- **Python** — optional backtest harness (off the hot path). **Solidity** — only if a custom contract is needed.
-
-Why no language is split badly: trading state lives only in the TS core (SQLite). The Go services are stateless (risk engine) or liveness-only (watchdog), so no source of truth is split across a boundary.
-
-## Repository layout
-```
-src/                  TypeScript core
-  sense/              CMC client -> MarketState (mock provider in paper mode)
-  decide/             three-gear FSM -> TradePlan
-  risk/               client for the Go risk engine (fail-closed)
-  execute/            Signer interface + paper/live executors
-  record/             ERC-8004 ledger writer (local in paper mode)
-  state/              node:sqlite store: positions, fills, ledger, high-water mark
-  ops/                health endpoint + heartbeat
-  config/, types/, util/
-risk-engine/          Go: stateless risk evaluation service (the DQ spine)
-watchdog/             Go: supervisor binary
-contracts/abi/        ABIs (PancakeSwap router, ERC-8004 registry)
-backtest/             optional Python harness
-deploy/               Dockerfile / compose / systemd
-config.json           risk-rule config (single source of truth)
-docs/resolved.md      resolve-first findings
-```
-
-## Run the product (web app)
-
-The user-facing product is a web app (onboarding wizard → live dashboard) backed by a control plane that manages the agent. Users never touch code.
+## Run locally
 
 ```bash
-npm install
-cd web && npm install && npm run build && cd ..
-( cd risk-engine && go build -o bin/risk-engine . )      # one-time
-node --disable-warning=ExperimentalWarning control-plane/server.ts
-# open http://127.0.0.1:8090 → create wallet → set risk rules → Launch → watch the dashboard
-```
-
-The entry screen is a full-screen **landing page** (mouse-scrub hero video, typewriter intro, scroll-driven story of how Helios reads the market → trades within hard limits → proves itself on-chain). From there: **create self-custody agent wallet → set risk rules with sliders → fund it → Launch**. The dashboard shows live equity, return, drawdown, positions, decisions, and the on-chain identity, with **Pause &amp; flatten** / **Stop** controls. The control plane (`control-plane/server.ts`) spawns and supervises the agent runtime + Go risk engine and proxies state to the UI.
-
-For UI development with hot reload: `cd web && npm run dev` (proxies `/api` to the control plane on :8090).
-
-## Run the engine directly (paper mode)
-
-Requires Node >= 24 (native TypeScript + `node:sqlite`) and Go >= 1.26. For live modes also install the Trust Wallet CLI: `npm i -g @trustwallet/cli`.
-
-```bash
-npm install
-cp .env.example .env          # fill in CMC + TWAK creds for live modes (not needed for paper)
-
-# terminal 1 — the Go risk engine (DQ spine)
+# risk engine
 cd risk-engine && go build -o bin/risk-engine . && RISK_ENGINE_ADDR=127.0.0.1:8081 ./bin/risk-engine
 
-# terminal 2 — the agent (paper mode: simulated fills, real marking)
+# agent (paper mode — no real funds)
 npm start
 
-# optional terminal 3 — the Go watchdog
-cd watchdog && go build -o bin/watchdog . && ./bin/watchdog
+# tests
+npm test
+cd risk-engine && go test ./...
+
+# web + control plane (full product on http://localhost:8090)
+cd web && npm install && npm run build
+node control-plane/server.ts
 ```
 
-- **Dashboard:** http://127.0.0.1:8080 (equity, return, drawdown, win-rate, positions, ledger, risk-policy hash)
-- **Health:** `/health` · **State JSON:** `/state` · **Paid signal:** `/signal` (x402) · **Kill-switch:** `POST /kill`, `POST /resume`
+Modes: **paper** (log decisions, no execution) → **testnet** (real txs, fake value) → **mainnet** (small real capital). Mainnet requires an explicit flag.
 
-Modes (in `config.json`): `paper` (simulated execution) → `testnet` → `mainnet` (small real capital). Never jump straight to mainnet. For unattended deployment see `deploy/`.
+## Safety
 
-## Tests & probes
-```bash
-cd risk-engine && go test ./...   # Go DQ-spine unit tests
-npm test                          # TS tests (decide FSM + state accounting)
-npm run typecheck                 # TS type checking
-npm run sense:probe               # live CMC MarketState (needs CMC key in .env)
-npm run swap:probe                # live swap quotes via TWAK (no funds)
-```
+Helios defaults to paper/testnet. It cannot guarantee profit — markets carry risk and gas is a real cost. What it guarantees is that it will never breach the limits you set, that your funds can only return to you, and that its entire record is verifiable on-chain.
 
-## How we used each stack
-- **CoinMarketCap (the brain):** the agent consumes the CMC **Agent Hub MCP** (`mcp.coinmarketcap.com`). Each tick `CmcSensor` calls `get_global_metrics_latest` (fear-&-greed, altcoin-season, BTC dominance → regime), `get_crypto_technical_analysis` (RSI/MACD/EMA → momentum & trend), `get_global_crypto_derivatives_metrics` (funding/OI → cross-asset pressure) and `get_crypto_quotes_latest` (price + liquidity), blended into a deterministic ensemble `MarketState`. We also **re-sell** these signals over an **x402** pay-per-call endpoint (`GET /signal`, $0.01 USDC on Base).
-- **Trust Wallet Agent Kit (the hands):** self-custody autonomous signing. The execute layer shells out to `twak swap` (the agent wallet, no per-tx approval) with a pre-trade slippage guard; the wallet's key never leaves the local keychain.
-- **BNB Chain (the memory + commerce):** the agent registers an on-chain **ERC-8004 identity** via `twak erc8004`, writes each decision + realized PnL to it, and publishes a periodic **reputation** snapshot (return, max-drawdown, win-rate, profit-factor) — a verifiable, auditable track record. It can also **sell its signals to other agents** via **ERC-8183** on-chain job escrows (`src/commerce/erc8183.ts`).
+---
 
-## What makes it different
-- **Deterministic FSM, not an LLM picking trades** — explainable, reproducible, auditable.
-- **The drawdown breaker is an isolated, unit-tested Go service** every trade must clear (fail-closed), with the hard stop *below* the DQ cap.
-- **Engineered to survive the unattended week** — Go watchdog, persisted state, idempotent execution, dust-safe flatten, runtime kill-switch.
-- **Verifiable + monetizable on-chain identity** — ERC-8004 reputation + ERC-8183 commerce + x402 signal sales (the uncontested BNB niche).
-- **Provably risk-constrained** — the declared risk config is hashed and published on-chain (`riskPolicyHash`), so anyone can verify the limits the agent is bound by.
-
-## Risk rules (declared, enforced)
-All limits live in `config.json` and are enforced by the Go risk engine on every trade. The hard drawdown stop (default 25%) sits below the disqualification cap so confirmation latency never breaches it. See `config.json`.
-
-## Status
-Fully wired end-to-end: Sense (live CMC) → Decide (FSM + turnover nudge) → Go risk engine (drawdown breaker, caps, cost, cooldown, kill-switch) → Execute (`twak swap`) → State (marked positions, real equity/drawdown) → Record (ERC-8004) → Ops (health, dashboard, alerts, Go watchdog). The drawdown breaker is verified firing on real marked equity (blocks entries, allows flatten). Remaining before the live window: fund the agent wallet for a mainnet small-capital dry run, register via `twak compete`, and confirm the exact contest limits. See `docs/resolved.md`.
+✳︎ *Let your capital trade itself.*

@@ -4,7 +4,7 @@ const WALLET = "0x3864b8A47B187fF2829BFf2f74D772811F727Cf7";
 const PROOF = [
   { label: "Agent wallet", value: `${WALLET.slice(0, 10)}…${WALLET.slice(-6)}`, href: `https://bscscan.com/address/${WALLET}` },
   { label: "ERC-8004 identity", value: "#139782", href: "https://bscscan.com/tx/0x905e74fde4c446bb873df4dabeff40d8e450e93ff415c3968d515f158e110b3d" },
-  { label: "Hackathon registration", value: "Registered ✓", href: "https://bscscan.com/tx/0x9348e927430a6bf269f3f7afda3c4a4c9d0291656937699bcc02ed7f116941a6" },
+  { label: "On-chain registration", value: "Registered ✓", href: "https://bscscan.com/tx/0x9348e927430a6bf269f3f7afda3c4a4c9d0291656937699bcc02ed7f116941a6" },
 ];
 
 export function Docs({ onBack }: { onBack: () => void }) {
@@ -14,7 +14,7 @@ export function Docs({ onBack }: { onBack: () => void }) {
 
       <h1 className="docs-title">Helios documentation</h1>
       <p className="muted" style={{ marginBottom: 24, fontSize: 15 }}>
-        Helios is a deterministic, self-custody, on-chain trading agent built for the BNB Hack: AI Trading Agent Edition. It reads the market, decides, executes,
+        Helios is a deterministic, self-custody, on-chain trading agent — currently running live on BNB Chain. It reads the market, decides, executes,
         and proves itself — autonomously, within the hard limits you set. This page explains exactly how it works, what it's bound by, and how to run it yourself.
       </p>
 
@@ -66,7 +66,7 @@ export function Docs({ onBack }: { onBack: () => void }) {
       </Section>
 
       <Section title="The eligible universe">
-        The agent trades only hackathon-eligible BSC assets and holds <b>USDT</b> as its stable. The current rotation set is <b>ETH, CAKE, XRP, LINK and UNI</b>
+        The agent trades only an allow-listed set of liquid BSC assets and holds <b>USDT</b> as its stable. The current rotation set is <b>ETH, CAKE, XRP, LINK and UNI</b>
         (Binance-Peg tokens on BNB Chain), each addressed by contract so swaps route reliably through on-chain aggregators. It never touches an asset outside this
         validated, allow-listed universe.
       </Section>
@@ -74,7 +74,7 @@ export function Docs({ onBack }: { onBack: () => void }) {
       <Section title="Self-custody">
         You connect your own wallet — it is your account. The agent signs through the Trust Wallet Agent Kit and keys never leave the local keychain; there is no
         custodial middleman. Withdrawals are <b>owner-locked</b>: funds can only ever be returned to the wallet that connected, regardless of what any request
-        asks for. Self-custody is both the safer design and the higher-scoring one under the competition's tiebreakers.
+        asks for. Self-custody is the safer design — you stay fully in control of your funds at all times.
       </Section>
 
       <Section title="Verifiable on-chain record">
@@ -94,10 +94,10 @@ export function Docs({ onBack }: { onBack: () => void }) {
         </ul>
       </Section>
 
-      <Section title="The stack — how we used each sponsor">
+      <Section title="The stack">
         <ul>
           <li><b>CoinMarketCap Agent Hub</b> — market regime, technicals, derivatives and sentiment via MCP, plus an x402 paid-data call.</li>
-          <li><b>Trust Wallet Agent Kit</b> — self-custody autonomous signing &amp; swaps from your own wallet, ERC-8004 identity, and competition registration.</li>
+          <li><b>Trust Wallet Agent Kit</b> — self-custody autonomous signing &amp; swaps from your own wallet, plus the ERC-8004 identity.</li>
           <li><b>BNB Chain</b> — the execution venue and the home of the ERC-8004 verifiable identity &amp; reputation record.</li>
         </ul>
       </Section>

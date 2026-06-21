@@ -40,7 +40,7 @@ export function HackathonLive() {
   ];
 
   const proofs = [
-    { icon: Trophy, label: "Registered", value: "BNB Hack ✓", href: `https://bscscan.com/tx/${s?.registerTx}` },
+    { icon: Trophy, label: "On-chain registration", value: "Registered ✓", href: `https://bscscan.com/tx/${s?.registerTx}` },
     { icon: Fingerprint, label: "ERC-8004 identity", value: `#${s?.agentId ?? "139782"}`, href: `https://bscscan.com/tx/${s?.identityTx}` },
     { icon: Wallet, label: "Agent wallet", value: s ? `${s.wallet.slice(0, 6)}…${s.wallet.slice(-4)}` : "0x3864…7Cf7", href: `https://bscscan.com/address/${s?.wallet ?? ""}` },
   ];
@@ -53,15 +53,15 @@ export function HackathonLive() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: ACCENT }} />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: ACCENT }} />
           </span>
-          <p className="text-sm uppercase tracking-[0.25em]" style={{ color: ACCENT }}>{trading ? "Live in the competition" : "Entered & on-chain"}</p>
+          <p className="text-sm uppercase tracking-[0.25em]" style={{ color: ACCENT }}>{trading ? "Currently running · live agent" : "Live agent · on-chain"}</p>
         </motion.div>
 
         <motion.h2 {...fade} className="mt-4 max-w-3xl text-3xl md:text-5xl leading-[1.1] tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
-          How Helios is performing in <span style={{ color: ACCENT }}>BNB Hack</span>
+          Our <span style={{ color: ACCENT }}>live agent</span>, running right now
         </motion.h2>
         <motion.p {...fade} className="mt-4 max-w-2xl text-[15px] leading-relaxed text-white/55">
           Our flagship agent is registered, self-custody, and verifiable on BNB Chain — every number below is read live from its on-chain wallet and ledger.
-          {!trading && " The trading window is live and the agent is preparing its first cycle; metrics populate the moment it trades."}
+          {!trading && " The agent is live and preparing its first cycle; metrics populate the moment it trades."}
         </motion.p>
 
         {/* on-chain proof badges */}
