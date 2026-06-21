@@ -86,7 +86,7 @@ export function HackathonLive() {
               <span className="text-sm" style={{ fontFamily: "var(--font-mono)", color: ret >= 0 ? ACCENT : "#f87171" }}>${capital.toFixed(2)}</span>
             </div>
             {s && s.equityHistory.length >= 2 ? (
-              <EquityChart points={s.equityHistory} />
+              <EquityChart points={s.equityHistory} baseline={m?.startingCapitalUsd} />
             ) : (
               <div className="flex h-[300px] flex-col items-center justify-center gap-2 text-center">
                 <div className="text-white/40 text-sm">Equity curve builds as the agent trades</div>
