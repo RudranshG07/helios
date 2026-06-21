@@ -1,6 +1,6 @@
 {
   "mode": "mainnet",
-  "tickIntervalSeconds": 300,
+  "tickIntervalSeconds": 60,
   "staleMarketSeconds": 900,
   "startingCapitalUsd": 12,
   "recordTradesOnChain": true,
