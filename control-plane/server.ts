@@ -11,7 +11,7 @@ const ENV = resolve(ROOT, ".env");
 const DATA = resolve(ROOT, "data");
 const REGISTRY = resolve(DATA, "registry.json");
 const WEB_DIST = resolve(ROOT, "web", "dist");
-const PORT = Number(process.env.CONTROL_PORT ?? 8090);
+const PORT = Number(process.env.PORT ?? process.env.CONTROL_PORT ?? 8090);
 const ENGINE_ADDR = "127.0.0.1:8081";
 
 const mainnetChain = { chainId: 56, twakChain: "smartchain", erc8004Chain: "bsc", rpcUrls: ["https://bsc-dataseed.bnbchain.org", "https://bsc-dataseed1.defibit.io"], confirmations: 1, gasBumpPct: 12, txTimeoutSeconds: 90 };

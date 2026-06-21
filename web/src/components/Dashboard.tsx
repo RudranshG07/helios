@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AgentState } from "../api.ts";
+import { EquityChart } from "./EquityChart.tsx";
 
 export function Dashboard({ initial, onStopped }: { initial: AgentState | null; onStopped: () => void }) {
   const [state, setState] = useState<AgentState | null>(initial);
@@ -70,6 +71,11 @@ export function Dashboard({ initial, onStopped }: { initial: AgentState | null; 
         <Metric label="Max drawdown" value={`${dd}%`} />
         <Metric label="Win rate" value={m ? `${Math.round(m.winRate * 100)}%` : "—"} />
         <Metric label="Trades" value={m ? String(m.tradeCount) : "—"} />
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3>Equity curve {state?.holding?.length ? `· holding ${state.holding.join(", ")}` : "· in stable"}</h3>
+        <EquityChart points={state?.equityHistory ?? []} />
       </div>
 
       {state?.rationale && (

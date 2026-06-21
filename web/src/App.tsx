@@ -3,11 +3,13 @@ import { api, getUserId, type AgentState } from "./api.ts";
 import { Landing } from "./components/Landing.tsx";
 import { Onboarding } from "./components/Onboarding.tsx";
 import { Dashboard } from "./components/Dashboard.tsx";
+import { Docs } from "./components/Docs.tsx";
 
-type Phase = "loading" | "landing" | "onboard" | "dashboard";
+type Phase = "loading" | "landing" | "onboard" | "dashboard" | "docs";
 
 export function App() {
   const [phase, setPhase] = useState<Phase>("loading");
+  const [back, setBack] = useState<Phase>("landing");
   const [state, setState] = useState<AgentState | null>(null);
   const [preset, setPreset] = useState<string[]>([]);
 
@@ -25,7 +27,13 @@ export function App() {
       .catch(() => setPhase("landing"));
   }, []);
 
+  const openDocs = (from: Phase) => {
+    setBack(from);
+    setPhase("docs");
+  };
+
   if (phase === "loading") return <div className="center muted">connecting…</div>;
+  if (phase === "docs") return <div className="app"><Docs onBack={() => setPhase(back)} /></div>;
   if (phase === "landing")
     return (
       <Landing
@@ -33,6 +41,7 @@ export function App() {
           if (services && services.length) setPreset(services);
           setPhase("onboard");
         }}
+        onDocs={() => openDocs("landing")}
       />
     );
 
@@ -43,6 +52,8 @@ export function App() {
           <span className="logo">◎</span> Helios
         </div>
         <div className="tagline">autonomous · self-custody · verifiable</div>
+        <div className="spacer" style={{ flex: 1 }} />
+        <button className="ghost" style={{ padding: "6px 14px" }} onClick={() => openDocs(phase)}>Docs</button>
       </header>
       {phase === "onboard" && <Onboarding preset={preset} onLaunched={() => setPhase("dashboard")} />}
       {phase === "dashboard" && <Dashboard initial={state} onStopped={() => setPhase("landing")} />}

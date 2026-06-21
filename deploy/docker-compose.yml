@@ -1,37 +1,16 @@
 services:
-  risk-engine:
+  helios:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
     image: helios:latest
-    command: ["risk-engine"]
-    environment:
-      - RISK_ENGINE_ADDR=0.0.0.0:8081
-    restart: always
-
-  agent:
-    image: helios:latest
-    command: ["node", "src/index.ts"]
     env_file: ../.env
     environment:
-      - HELIOS_CONFIG=/app/config.docker.json
-      - HELIOS_DB=/app/data/helios.db
+      - PORT=8090
+    ports:
+      - "8090:8090"
     volumes:
       - helios-data:/app/data
-    ports:
-      - "8080:8080"
-    depends_on:
-      - risk-engine
-    restart: always
-
-  watchdog:
-    image: helios:latest
-    command: ["watchdog"]
-    env_file: ../.env
-    environment:
-      - HELIOS_CONFIG=/app/config.docker.json
-    depends_on:
-      - agent
     restart: always
 
 volumes:

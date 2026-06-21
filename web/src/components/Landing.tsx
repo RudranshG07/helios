@@ -1,19 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Check, ArrowRight, ArrowRightCircle, Zap, ShieldCheck, Fingerprint, Menu, X } from "lucide-react";
+import { Check, ArrowRight, Menu, X, Cpu, Shuffle, Gauge, ShieldCheck, Fingerprint, FileCheck2 } from "lucide-react";
 
 const VIDEO_A = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260601_110537_3a579fa0-7bbc-4d94-9d25-0e816c7840f5.mp4";
-const VIDEO_B = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260606_131516_eca35265-ea66-4fbd-8d52-22aae6e1a503.mp4";
-const LINKS = ["How it works", "Performance", "Security", "Docs"];
+const LINKS = ["How it works", "Agent", "Security", "Docs"];
 const OPTIONS = ["Maximum return", "Capital preservation", "Steady growth", "My own rules"];
-const ACCENT = "#00ff2b";
+const ACCENT = "#6ee7b7";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
-  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] } }),
+  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] } }),
 };
 
-const iconStyle = { color: "#00ff2b", display: "inline", verticalAlign: "middle", position: "relative", top: -2, margin: "0 6px" } as const;
+const reveal = { initial: "hidden", whileInView: "visible", viewport: { once: true, amount: 0.2 }, variants: fadeUp } as const;
 
 function useTypewriter(text: string, speed = 38, startDelay = 600) {
   const [displayed, setDisplayed] = useState("");
@@ -39,14 +38,29 @@ function useTypewriter(text: string, speed = 38, startDelay = 600) {
   return { displayed, done };
 }
 
-export function Landing({ onStart }: { onStart: (services?: string[]) => void }) {
+const FEATURES = [
+  { icon: Cpu, title: "Deterministic, not a gambling LLM", body: "Every trade is a reproducible, auditable decision from real signals — not a language model guessing. The AI advises; deterministic logic and the risk engine decide." },
+  { icon: Shuffle, title: "Rotates into the strongest token", body: "Each cycle it scores a basket of eligible assets and moves into the single strongest — capturing the best mover instead of being stuck in one." },
+  { icon: Gauge, title: "Strong-conviction gate", body: "It only deploys when a signal is genuinely strong; otherwise it waits in stable. In backtests this turned a −22% market into a positive return." },
+  { icon: ShieldCheck, title: "Isolated risk engine", body: "A separate, unit-tested Go service clears every trade — drawdown breaker, exposure caps, per-trade & daily limits, slippage, cooldown. Fail-closed." },
+  { icon: Fingerprint, title: "Self-custody", body: "Connect your own wallet — it's your account, and the agent can only ever return funds to it. Keys never leave you (Trust Wallet Agent Kit)." },
+  { icon: FileCheck2, title: "Verifiable on-chain", body: "Decisions, realized PnL, and a reputation snapshot are written to an ERC-8004 identity. Its risk policy is hashed on-chain — verifiable, not claimed." },
+];
+
+const STEPS = [
+  { n: "01", t: "Sense", d: "Read CoinMarketCap signals — regime, technicals, derivatives, sentiment — across the eligible token universe." },
+  { n: "02", t: "Decide", d: "Score each token, rank by conviction, choose the strongest — or stay in stable if none is strong enough." },
+  { n: "03", t: "Gate", d: "The Go risk engine validates the trade against every declared limit. No pass, no trade." },
+  { n: "04", t: "Execute", d: "Sign & swap on BSC through your self-custody wallet — no per-transaction approval needed." },
+  { n: "05", t: "Record", d: "Write the decision + PnL to the on-chain ERC-8004 identity. Loop, 24/7." },
+];
+
+export function Landing({ onStart, onDocs }: { onStart: (services?: string[]) => void; onDocs: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const bgRef = useRef<HTMLVideoElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [services, setServices] = useState<string[]>([]);
   const { displayed, done } = useTypewriter("let your capital\ntrade itself.");
 
-  // section 1 video: desktop mouse scrub, mobile autoplay
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -86,28 +100,23 @@ export function Landing({ onStart }: { onStart: (services?: string[]) => void })
     };
   }, []);
 
-  useEffect(() => {
-    bgRef.current?.play().catch(() => {});
-  }, []);
-
   const toggle = (s: string) => setServices((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
 
   return (
-    <div className="relative bg-[#000000] text-white font-sans antialiased overflow-x-hidden selection:bg-[#00ff2b]/40">
-      {/* shared navbar */}
-      <header className="fixed top-0 inset-x-0 z-30 px-5 sm:px-8 py-4 sm:py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-[21px] sm:text-[26px] tracking-tight font-medium select-none">Helios&reg;</span>
-          <span className="text-[25px] sm:text-[30px] select-none tracking-[-0.02em] font-medium leading-none mb-1" style={{ color: ACCENT }}>&#10033;</span>
+    <div className="relative bg-[#0a0b0d] text-[#e9eaec] antialiased overflow-x-hidden" style={{ fontFamily: "var(--font-body)" }}>
+      {/* navbar */}
+      <header className="fixed top-0 inset-x-0 z-30 px-5 sm:px-8 py-4 sm:py-5 flex items-center justify-between bg-gradient-to-b from-[#0a0b0d]/80 to-transparent backdrop-blur-[2px]">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[22px] sm:text-[26px] tracking-tight font-semibold" style={{ fontFamily: "var(--font-heading)" }}>Helios</span>
+          <span className="text-[24px] leading-none" style={{ color: ACCENT }}>✳︎</span>
         </div>
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-white/85">
+        <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
           {LINKS.map((l) => (
-            <a key={l} href="#" className="transition-opacity hover:opacity-70">{l}</a>
+            <a key={l} href="#" onClick={(e) => { e.preventDefault(); onDocs(); }} className="transition-colors hover:text-white">{l}</a>
           ))}
         </nav>
         <div className="hidden md:flex items-center gap-3">
-          <button onClick={() => onStart()} className="rounded-full px-5 py-2.5 text-sm font-semibold text-black transition hover:shadow-lg active:scale-95" style={{ background: ACCENT }}>Launch agent</button>
-          <button onClick={() => onStart()} className="rounded-full bg-white/10 px-5 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white/15 active:scale-95">Sign in</button>
+          <button onClick={() => onStart()} className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#0a0b0d] transition hover:bg-white/90 active:scale-95">Launch agent</button>
         </div>
         <button className="md:hidden" onClick={() => setMenuOpen(true)} aria-label="menu"><Menu size={24} /></button>
       </header>
@@ -116,83 +125,71 @@ export function Landing({ onStart }: { onStart: (services?: string[]) => void })
       <AnimatePresence>
         {menuOpen && (
           <>
-            <motion.div className="fixed inset-0 z-[40] md:hidden" style={{ background: "rgba(7,9,13,0.55)", backdropFilter: "blur(4px)" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} onClick={() => setMenuOpen(false)} />
-            <motion.div className="fixed right-0 top-0 z-[41] flex flex-col p-6 md:hidden" style={{ width: "min(88vw,360px)", height: "100dvh", background: "#11161f", boxShadow: "-12px 0 48px rgba(0,0,0,0.5)" }} initial={{ x: "100%" }} animate={{ x: 0, transition: { ease: [0.22, 1, 0.36, 1], duration: 0.45 } }} exit={{ x: "100%", transition: { ease: [0.55, 0, 1, 0.45], duration: 0.35 } }}>
+            <motion.div className="fixed inset-0 z-[40] md:hidden" style={{ background: "rgba(8,9,12,0.6)", backdropFilter: "blur(4px)" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} onClick={() => setMenuOpen(false)} />
+            <motion.div className="fixed right-0 top-0 z-[41] flex flex-col p-6 md:hidden" style={{ width: "min(88vw,360px)", height: "100dvh", background: "#101216", boxShadow: "-12px 0 48px rgba(0,0,0,0.5)" }} initial={{ x: "100%" }} animate={{ x: 0, transition: { ease: [0.22, 1, 0.36, 1], duration: 0.45 } }} exit={{ x: "100%", transition: { ease: [0.55, 0, 1, 0.45], duration: 0.35 } }}>
               <div className="flex items-center justify-between">
-                <span className="text-[22px] font-medium">Helios&reg;</span>
+                <span className="text-[22px] font-semibold" style={{ fontFamily: "var(--font-heading)" }}>Helios</span>
                 <motion.button whileTap={{ scale: 0.9 }} onClick={() => setMenuOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10"><X size={20} /></motion.button>
               </div>
               <div className="my-6 h-px bg-white/10" />
               <div className="flex flex-col gap-1">
-                {LINKS.map((l, i) => (
-                  <motion.a key={l} href="#" onClick={() => setMenuOpen(false)} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0, transition: { delay: 0.18 + i * 0.07, duration: 0.4 } }} className="rounded-xl px-3 py-2.5 text-[1.1rem] text-white/90 transition hover:bg-white/10">{l}</motion.a>
+                {LINKS.map((l) => (
+                  <a key={l} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); onDocs(); }} className="rounded-xl px-3 py-2.5 text-[1.1rem] text-white/90 transition hover:bg-white/10">{l}</a>
                 ))}
               </div>
-              <div className="mt-auto flex flex-col gap-3">
-                <button onClick={() => onStart()} className="w-full rounded-full py-3.5 text-[0.95rem] font-semibold text-black" style={{ background: ACCENT }}>Launch agent</button>
-                <button onClick={() => onStart()} className="w-full rounded-full bg-white/10 py-3.5 text-[0.95rem] font-semibold">Sign in</button>
-              </div>
+              <button onClick={() => onStart()} className="mt-auto w-full rounded-full bg-white py-3.5 text-[0.95rem] font-semibold text-[#0a0b0d]">Launch agent</button>
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      {/* SECTION 1 — typewriter + optimize pills (mouse-scrub video) */}
+      {/* hero */}
       <section className="relative flex flex-col lg:block lg:min-h-screen">
         <div className="order-last lg:order-none relative lg:absolute lg:inset-0 lg:z-0 overflow-hidden pointer-events-none w-full aspect-square md:aspect-video lg:aspect-auto lg:h-full">
-          <video ref={videoRef} className="w-full h-full object-cover object-right lg:object-right-bottom" style={{ filter: "brightness(0.55) saturate(0.9)" }} src={VIDEO_A} muted playsInline preload="auto" onLoadedData={(e) => (e.currentTarget.currentTime = 0.04)} />
-          <div className="hidden lg:block absolute inset-0" style={{ background: "linear-gradient(to right, #000000 6%, rgba(7,9,13,0.88) 38%, rgba(7,9,13,0.25) 74%, transparent)" }} />
-          <div className="lg:hidden absolute inset-0" style={{ background: "linear-gradient(to top, #000000 12%, rgba(7,9,13,0.2) 70%)" }} />
+          <video ref={videoRef} className="w-full h-full object-cover object-right lg:object-right-bottom" style={{ filter: "brightness(0.5) saturate(0.85) grayscale(0.3)" }} src={VIDEO_A} muted playsInline preload="auto" onLoadedData={(e) => (e.currentTarget.currentTime = 0.04)} />
+          <div className="hidden lg:block absolute inset-0" style={{ background: "linear-gradient(to right, #0a0b0d 6%, rgba(10,11,13,0.85) 40%, rgba(10,11,13,0.2) 76%, transparent)" }} />
+          <div className="lg:hidden absolute inset-0" style={{ background: "linear-gradient(to top, #0a0b0d 14%, rgba(10,11,13,0.2) 72%)" }} />
         </div>
 
         <div className="relative z-10 flex flex-col order-first lg:order-none w-full pb-8 lg:pb-0 lg:min-h-screen">
           <main className="w-full max-w-7xl mx-auto px-6 py-12 flex-1 flex flex-col justify-center">
             <div className="max-w-2xl">
-              <motion.h1 custom={0} initial="hidden" animate="visible" variants={fadeUp} className="text-5xl md:text-6xl lg:text-[76px] font-normal tracking-tight leading-[1.08] mb-8 select-none whitespace-pre-wrap">
+              <motion.div custom={0} initial="hidden" animate="visible" variants={fadeUp} className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-white/60">
+                <span style={{ color: ACCENT }}>●</span> autonomous · self-custody · verifiable
+              </motion.div>
+              <motion.h1 custom={1} initial="hidden" animate="visible" variants={fadeUp} className="text-5xl md:text-6xl lg:text-[78px] tracking-tight leading-[1.05] mb-7 select-none whitespace-pre-wrap" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
                 {displayed}
-                {!done && <span className="inline-block w-[2px] h-[1.1em] bg-white align-middle ml-[2px] animate-blink" />}
+                {!done && <span className="inline-block w-[3px] h-[0.95em] bg-white align-middle ml-[3px] animate-blink" />}
               </motion.h1>
-
-              <motion.p custom={1} initial="hidden" animate="visible" variants={fadeUp} className="text-lg md:text-xl text-white/60 leading-relaxed mb-10 max-w-2xl">
-                Helios reads the market, decides, and trades on-chain — <br className="hidden sm:block" />
-                autonomously, within the hard risk limits you set.
+              <motion.p custom={2} initial="hidden" animate="visible" variants={fadeUp} className="text-lg md:text-xl text-white/55 leading-relaxed mb-9 max-w-xl">
+                Helios reads the market, decides, and trades on-chain — autonomously, within the hard risk limits you set.
               </motion.p>
 
-              <motion.div custom={2} initial="hidden" animate="visible" variants={fadeUp}>
-                <h2 className="text-2xl font-medium tracking-tight mb-1">What should Helios optimize for?</h2>
-                <p className="text-white/45 mb-6">Select all that apply — you can change it anytime.</p>
+              <motion.div custom={3} initial="hidden" animate="visible" variants={fadeUp} className="mb-10 flex flex-wrap gap-3">
+                <button onClick={() => onStart()} className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[15px] font-semibold text-[#0a0b0d] transition hover:bg-white/90 active:scale-95">
+                  Launch your agent <ArrowRight size={17} />
+                </button>
+                <button onClick={onDocs} className="rounded-full border border-white/15 px-6 py-3.5 text-[15px] font-medium text-white/90 transition hover:bg-white/[0.06]">Read the docs</button>
+              </motion.div>
+
+              <motion.div custom={4} initial="hidden" animate="visible" variants={fadeUp}>
+                <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/35">What should it optimize for?</p>
                 <div className="flex flex-wrap gap-2.5">
                   {OPTIONS.map((opt) => {
                     const active = services.includes(opt);
                     return (
-                      <motion.button key={opt} onClick={() => toggle(opt)} whileTap={{ scale: 0.96 }} className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-[15px] font-medium transition-colors ${active ? "text-black shadow-md" : "bg-white/5 text-white/85 border border-white/15 hover:bg-white/10"}`} style={active ? { background: ACCENT } : undefined}>
-                        {active && (
-                          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-                            <Check size={15} strokeWidth={3} />
-                          </motion.span>
-                        )}
+                      <button key={opt} onClick={() => toggle(opt)} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition-colors ${active ? "text-[#0a0b0d]" : "border border-white/12 bg-white/[0.03] text-white/70 hover:bg-white/[0.07]"}`} style={active ? { background: ACCENT } : undefined}>
+                        {active && <Check size={14} strokeWidth={3} />}
                         {opt}
-                      </motion.button>
+                      </button>
                     );
                   })}
                 </div>
-
-                <AnimatePresence mode="wait">
-                  {services.length === 0 ? (
-                    <motion.p key="empty" initial={{ opacity: 0 }} animate={{ opacity: 0.5 }} exit={{ opacity: 0 }} className="italic text-xs mt-5 text-white/50">
-                      Tap to choose how Helios should trade.
-                    </motion.p>
-                  ) : (
-                    <motion.div key="active" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                      <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-sm text-white/80">
-                          Helios will optimize for: <strong className="text-white">{services.join(", ")}</strong>
-                        </span>
-                        <button onClick={() => onStart(services)} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide transition-all hover:gap-3" style={{ color: "#00ff2b" }}>
-                          Let's go <ArrowRight size={15} />
-                        </button>
-                      </div>
-                    </motion.div>
+                <AnimatePresence>
+                  {services.length > 0 && (
+                    <motion.button onClick={() => onStart(services)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 inline-flex items-center gap-2 text-sm font-medium" style={{ color: ACCENT }}>
+                      Continue with {services.join(", ")} <ArrowRight size={15} />
+                    </motion.button>
                   )}
                 </AnimatePresence>
               </motion.div>
@@ -201,28 +198,100 @@ export function Landing({ onStart }: { onStart: (services?: string[]) => void })
         </div>
       </section>
 
-      {/* SECTION 2 — centered inline-icon hero (looping video) */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <video ref={bgRef} className="absolute inset-0 z-0 h-full w-full object-cover" style={{ filter: "brightness(0.42) saturate(0.85)" }} src={VIDEO_B} autoPlay muted loop playsInline preload="auto" />
-        <div className="absolute inset-0 z-0" style={{ background: "radial-gradient(900px 600px at 50% 18%, rgba(0,255,43,0.2), transparent 60%), linear-gradient(to bottom, rgba(7,9,13,0.7), rgba(7,9,13,0.6) 50%, rgba(7,9,13,0.95))" }} />
-        <div className="relative z-10 mx-auto max-w-[680px] px-6 text-center">
-          <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.4 }} custom={0} variants={fadeUp} className="font-extrabold" style={{ fontSize: "clamp(2.1rem,6vw,4rem)", lineHeight: 1.05, letterSpacing: "-0.02em" }}>
-            <span className="whitespace-nowrap">
-              Trade<Zap size={32} style={iconStyle} />smarter, risk<ShieldCheck size={32} style={iconStyle} />less
-            </span>
-            <br />
-            stay fully<Fingerprint size={32} style={{ ...iconStyle, marginLeft: 8 }} />in control
-          </motion.h2>
-          <motion.p initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.4 }} custom={1} variants={fadeUp} className="mx-auto mt-6 max-w-[560px] text-white/75" style={{ fontSize: "clamp(0.95rem,2.5vw,1.15rem)", lineHeight: 1.65 }}>
-            Self-custody, verifiable, always on. Every decision and realized PnL is written on-chain — a tamper-proof track record you and anyone can audit.
-          </motion.p>
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.4 }} custom={2} variants={fadeUp} className="mt-9 flex justify-center">
-            <motion.button onClick={() => onStart()} whileHover={{ scale: 1.04, filter: "brightness(1.1)" }} whileTap={{ scale: 0.96 }} className="flex items-center justify-between gap-8 font-semibold text-black" style={{ background: ACCENT, borderRadius: 50, padding: "17px 24px", minWidth: 210, boxShadow: "0 4px 24px rgba(0,255,43,0.4)" }}>
-              Launch your agent <ArrowRightCircle size={20} />
-            </motion.button>
-          </motion.div>
+      {/* MEET THE AGENT — detailed */}
+      <section className="relative z-10 mx-auto max-w-5xl px-6 py-24 md:py-32">
+        <motion.p {...reveal} custom={0} className="text-sm uppercase tracking-[0.25em]" style={{ color: ACCENT }}>The agent</motion.p>
+        <motion.h2 {...reveal} custom={1} className="mt-4 max-w-3xl text-3xl md:text-5xl leading-[1.1] tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
+          A trading agent built to survive markets, not just predict them.
+        </motion.h2>
+        <motion.div {...reveal} custom={2} className="mt-8 grid gap-6 md:grid-cols-2 text-white/60 text-[15px] leading-relaxed">
+          <p>
+            Most "AI trading agents" are a language model that reads sentiment and fires a swap — directional, non-reproducible, and prone to either blowing up
+            or freezing. Helios is the opposite. It's a <span className="text-white">deterministic decision engine</span>: every cycle it pulls
+            decision-ready signals from CoinMarketCap, scores a basket of eligible tokens, and rotates into the single strongest — but only when conviction is
+            genuinely high. When nothing is strong, it sits in stable and waits. That one rule is why it preserves capital in bad markets and still captures the
+            good moves.
+          </p>
+          <p>
+            Underneath, an <span className="text-white">isolated risk engine</span> clears every trade against a drawdown breaker, exposure caps, and daily
+            limits — it cannot breach the rules you set. A Claude analyst adds a sentiment read, but it only ever <span className="text-white">advises</span>; the
+            deterministic logic and the risk gate decide. And because it runs on the Trust Wallet Agent Kit, it trades from <span className="text-white">your own
+            self-custody wallet</span> and writes every decision to a verifiable <span className="text-white">ERC-8004 identity</span> on BNB Chain. You don't
+            have to trust the track record — you can audit it.
+          </p>
+        </motion.div>
+
+        <motion.div {...reveal} custom={3} className="mt-12 grid gap-4 sm:grid-cols-3">
+          {[["+8.4%", "backtest return while the market fell −22%"], ["< 10%", "max drawdown — far under the disqualification cap"], ["24/7", "unattended, restart-safe, watchdog-supervised"]].map(([big, small]) => (
+            <div key={big} className="rounded-2xl border border-white/8 bg-white/[0.02] p-6">
+              <div className="text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 600, color: ACCENT }}>{big}</div>
+              <div className="mt-2 text-sm text-white/50">{small}</div>
+            </div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" className="relative z-10 mx-auto max-w-6xl px-6 py-16">
+        <motion.h2 {...reveal} className="mb-12 max-w-2xl text-3xl md:text-4xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
+          What makes it extraordinary
+        </motion.h2>
+        <div className="grid gap-5 md:grid-cols-3">
+          {FEATURES.map((f, i) => (
+            <motion.div key={f.title} {...reveal} custom={i % 3} className="rounded-2xl border border-white/8 bg-white/[0.02] p-6">
+              <f.icon size={22} style={{ color: ACCENT }} />
+              <h3 className="mt-4 text-lg" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{f.title}</h3>
+              <p className="mt-2 text-sm text-white/55 leading-relaxed">{f.body}</p>
+            </motion.div>
+          ))}
         </div>
       </section>
+
+      {/* HOW IT WORKS */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
+        <motion.h2 {...reveal} className="mb-12 text-3xl md:text-4xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
+          The loop, every cycle
+        </motion.h2>
+        <div className="grid gap-4 md:grid-cols-5">
+          {STEPS.map((s, i) => (
+            <motion.div key={s.n} {...reveal} custom={i} className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+              <div className="font-mono text-xs" style={{ color: ACCENT, fontFamily: "var(--font-mono)" }}>{s.n}</div>
+              <div className="mt-2 text-lg" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{s.t}</div>
+              <p className="mt-2 text-[13px] text-white/50 leading-relaxed">{s.d}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* STACK */}
+      <section className="relative z-10 mx-auto max-w-5xl px-6 py-16">
+        <motion.p {...reveal} className="text-sm uppercase tracking-[0.25em] text-white/40">Built on</motion.p>
+        <motion.div {...reveal} custom={1} className="mt-6 grid gap-6 sm:grid-cols-3 text-white/60">
+          {[["CoinMarketCap", "Agent Hub — market regime, technicals, derivatives & sentiment via MCP + x402."], ["Trust Wallet", "Agent Kit — self-custody autonomous signing & swaps from your wallet."], ["BNB Chain", "Execution venue + ERC-8004 verifiable identity & reputation."]].map(([t, d]) => (
+            <div key={t}>
+              <h3 className="text-white" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{t}</h3>
+              <p className="mt-2 text-sm leading-relaxed">{d}</p>
+            </div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className="relative z-10 mx-auto max-w-4xl px-6 py-28 text-center">
+        <motion.h2 {...reveal} className="text-4xl md:text-6xl tracking-tight leading-[1.05]" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
+          Your agent. Your rules.<br /><span style={{ color: ACCENT }}>On-chain.</span>
+        </motion.h2>
+        <motion.div {...reveal} custom={1} className="mt-10 flex justify-center gap-3">
+          <button onClick={() => onStart()} className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-[15px] font-semibold text-[#0a0b0d] transition hover:bg-white/90 active:scale-95">
+            Launch your agent <ArrowRight size={17} />
+          </button>
+          <button onClick={onDocs} className="rounded-full border border-white/15 px-7 py-4 text-[15px] font-medium text-white/90 transition hover:bg-white/[0.06]">Docs</button>
+        </motion.div>
+      </section>
+
+      <footer className="relative z-10 border-t border-white/8 px-6 py-10 text-center text-sm text-white/40">
+        <span style={{ fontFamily: "var(--font-heading)" }}>Helios</span> <span style={{ color: ACCENT }}>✳︎</span> · deterministic · self-custody · verifiable
+      </footer>
     </div>
   );
 }

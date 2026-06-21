@@ -1,22 +1,22 @@
 :root {
-  --bg: #000000;
-  --panel: #0c0f0c;
-  --panel2: #131813;
-  --border: #1f261f;
-  --text: #e6f5e8;
-  --muted: #7e8c7e;
-  --accent: #00ff2b;
-  --green: #00ff2b;
-  --red: #e74c3c;
+  --bg: #0a0b0d;
+  --panel: #121419;
+  --panel2: #181b21;
+  --border: #262a31;
+  --text: #e9eaec;
+  --muted: #8b9099;
+  --accent: #6ee7b7;
+  --green: #6ee7b7;
+  --red: #f87171;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-code { font-family: ui-monospace, Menlo, monospace; color: var(--muted); }
-a { color: #5aa9ff; text-decoration: none; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body), system-ui, sans-serif; }
+code { font-family: var(--font-mono), ui-monospace, monospace; color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
 
-.app { max-width: 1080px; margin: 0 auto; padding: 24px; }
-.topbar { display: flex; align-items: baseline; gap: 16px; padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
-.brand { font-size: 22px; font-weight: 700; }
+.app { max-width: 1120px; margin: 0 auto; padding: 24px; }
+.topbar { display: flex; align-items: center; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+.brand { font-size: 22px; font-weight: 700; font-family: var(--font-heading); letter-spacing: -0.01em; }
 .logo { color: var(--accent); }
 .tagline { color: var(--muted); font-size: 13px; }
 .center { text-align: center; padding: 80px; }
@@ -77,3 +77,10 @@ th { color: var(--muted); font-weight: 500; }
 .footer-info { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
 
 @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* docs + display headings */
+.docs { max-width: 780px; margin: 0 auto; }
+.docs-title { font-family: var(--font-heading); font-size: 34px; letter-spacing: -0.02em; margin: 0 0 8px; }
+.docs .card ul { margin: 10px 0 0; padding-left: 18px; }
+.docs .card li { margin: 5px 0; }
+.metric-value, .money-val, .card h3 { font-family: var(--font-heading); letter-spacing: -0.01em; }

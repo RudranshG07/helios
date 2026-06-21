@@ -21,7 +21,10 @@ export interface AgentState {
     tradeCount: number;
   };
   positions?: { token: string; qtyBase: number; markPxUsd: number }[];
-  ledger?: { ts: number; regime: string; action: string; sizeUsd: number }[];
+  ledger?: { ts: number; regime: string; action: string; sizeUsd: number; rationale?: string }[];
+  equityHistory?: { ts: number; equityUsd: number }[];
+  bestToken?: string;
+  holding?: string[];
 }
 
 export interface RiskRules {
@@ -34,7 +37,10 @@ export interface RiskRules {
 }
 
 const USER_KEY = "helios_user";
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+
 export const getUserId = (): string | null => localStorage.getItem(USER_KEY);
+export const clearUser = (): void => localStorage.removeItem(USER_KEY);
 
 function authHeaders(): Record<string, string> {
   const id = getUserId();
@@ -44,7 +50,11 @@ function authHeaders(): Record<string, string> {
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: authHeaders(), ...init });
+  const res = await fetch(API_BASE + url, { headers: authHeaders(), ...init });
+  if (res.status === 401) {
+    clearUser(); // stale account id — drop it so we stop retrying
+    throw new Error("unauthorized");
+  }
   if (!res.ok) throw new Error(`${url} -> ${res.status}`);
   return (await res.json()) as T;
 }

@@ -116,6 +116,7 @@ export class OpsServer {
       walletAddress: process.env.TWAK_WALLET_ADDRESS ?? null,
       riskPolicyHash: this.policyHash,
       metrics: this.store.metrics(),
+      equityHistory: this.store.getEquityHistory(80),
       ledger: this.store.getRecentLedger(20),
       ...this.beatExtra,
     };

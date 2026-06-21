@@ -24,6 +24,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS positions (token TEXT PRIMARY KEY, qtyBase REAL NOT NULL, entryPxUsd REAL NOT NULL, markPxUsd REAL NOT NULL);
       CREATE TABLE IF NOT EXISTS fills (clientOrderId TEXT PRIMARY KEY, ts INTEGER NOT NULL, token TEXT NOT NULL, stableDelta REAL NOT NULL, tokenDelta REAL NOT NULL, notionalUsd REAL NOT NULL, realizedPnl REAL NOT NULL DEFAULT 0, txHash TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS ledger (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, regime TEXT NOT NULL, action TEXT NOT NULL, sizeUsd REAL NOT NULL, realizedPnl REAL NOT NULL, rationale TEXT NOT NULL DEFAULT '', stateHash TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS equity_points (ts INTEGER PRIMARY KEY, equityUsd REAL NOT NULL);
     `);
   }
 
@@ -180,6 +181,15 @@ export class Store {
     return this.db
       .prepare("SELECT ts, regime, action, sizeUsd, realizedPnl, rationale, stateHash FROM ledger ORDER BY id DESC LIMIT ?")
       .all(limit) as unknown as LedgerEntry[];
+  }
+
+  recordEquityPoint(ts: number, equityUsd: number): void {
+    this.db.prepare("INSERT OR REPLACE INTO equity_points (ts, equityUsd) VALUES (?, ?)").run(ts, equityUsd);
+  }
+
+  getEquityHistory(limit: number): { ts: number; equityUsd: number }[] {
+    const rows = this.db.prepare("SELECT ts, equityUsd FROM equity_points ORDER BY ts DESC LIMIT ?").all(limit) as unknown as { ts: number; equityUsd: number }[];
+    return rows.reverse();
   }
 
   appendLedger(entry: LedgerEntry): void {

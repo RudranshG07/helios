@@ -133,6 +133,7 @@ async function tick(
   store.refreshHighWater();
   store.updateMaxDrawdown();
   const after = store.getPortfolio();
+  store.recordEquityPoint(now, after.equityUsd);
   const held = after.positions.filter((p) => p.token !== cfg.risk.stableAsset && p.qtyBase * p.markPxUsd >= 1).map((p) => p.token);
 
   ops.setSignal({
