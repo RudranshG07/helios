@@ -12,7 +12,7 @@
     "hardDrawdownStopPct": 0.15,
     "drawdownWarnPct": 0.1,
     "minTradesTarget": 7,
-    "minTradesPerDay": 1,
+    "minTradesPerDay": 3,
     "minLiquidityUsd": 100000,
     "maxSlippageBps": 100,
     "perTradeCostBps": 30,
