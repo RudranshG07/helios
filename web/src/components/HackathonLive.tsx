@@ -41,7 +41,7 @@ export function HackathonLive() {
 
   const proofs = [
     { icon: Trophy, label: "On-chain registration", value: "Registered ✓", href: `https://bscscan.com/tx/${s?.registerTx}` },
-    { icon: Fingerprint, label: "ERC-8004 identity", value: `#${s?.agentId ?? "139782"}`, href: `https://bscscan.com/tx/${s?.identityTx}` },
+    { icon: Fingerprint, label: "ERC-8004 identity", value: `#${s?.agentId ?? "139935"}`, href: `https://bscscan.com/address/${s?.wallet ?? ""}` },
     { icon: Wallet, label: "Agent wallet", value: s ? `${s.wallet.slice(0, 6)}…${s.wallet.slice(-4)}` : "0x3864…7Cf7", href: `https://bscscan.com/address/${s?.wallet ?? ""}` },
   ];
 

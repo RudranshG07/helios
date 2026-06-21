@@ -20,7 +20,7 @@ const testnetChain = { chainId: 97, twakChain: "smartchain-testnet", erc8004Chai
 
 const SHOWCASE = {
   wallet: "0x3864b8A47B187fF2829BFf2f74D772811F727Cf7",
-  agentId: "139782",
+  agentId: "139935",
   registered: true,
   deadline: "2026-06-25T00:00:00.000Z",
   registerTx: "0x9348e927430a6bf269f3f7afda3c4a4c9d0291656937699bcc02ed7f116941a6",

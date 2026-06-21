@@ -1,9 +1,9 @@
 {
-  "mode": "paper",
+  "mode": "mainnet",
   "tickIntervalSeconds": 300,
   "staleMarketSeconds": 900,
   "startingCapitalUsd": 12,
-  "recordTradesOnChain": false,
+  "recordTradesOnChain": true,
   "reputationThrottleSeconds": 86400,
   "risk": {
     "maxExposurePct": 0.8,
@@ -33,12 +33,12 @@
     "killSwitch": false
   },
   "chain": {
-    "chainId": 97,
-    "twakChain": "smartchain-testnet",
-    "erc8004Chain": "bsctestnet",
+    "chainId": 56,
+    "twakChain": "smartchain",
+    "erc8004Chain": "bsc",
     "rpcUrls": [
-      "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
-      "https://data-seed-prebsc-2-s1.bnbchain.org:8545"
+      "https://bsc-dataseed.bnbchain.org",
+      "https://bsc-dataseed1.defibit.io"
     ],
     "confirmations": 1,
     "gasBumpPct": 12,

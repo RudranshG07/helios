@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 const WALLET = "0x3864b8A47B187fF2829BFf2f74D772811F727Cf7";
 const PROOF = [
   { label: "Agent wallet", value: `${WALLET.slice(0, 10)}…${WALLET.slice(-6)}`, href: `https://bscscan.com/address/${WALLET}` },
-  { label: "ERC-8004 identity", value: "#139782", href: "https://bscscan.com/tx/0x905e74fde4c446bb873df4dabeff40d8e450e93ff415c3968d515f158e110b3d" },
+  { label: "ERC-8004 identity", value: "#139935", href: `https://bscscan.com/address/${WALLET}` },
   { label: "On-chain registration", value: "Registered ✓", href: "https://bscscan.com/tx/0x9348e927430a6bf269f3f7afda3c4a4c9d0291656937699bcc02ed7f116941a6" },
 ];
 
@@ -78,7 +78,7 @@ export function Docs({ onBack }: { onBack: () => void }) {
       </Section>
 
       <Section title="Verifiable on-chain record">
-        The agent holds a real <b>ERC-8004 identity</b> on BNB Chain (token #139782). It writes its decisions, realized PnL, and a periodic reputation snapshot to
+        The agent holds a real <b>ERC-8004 identity</b> on BNB Chain (token #139935). It writes its decisions, realized PnL, and a periodic reputation snapshot to
         that identity — a tamper-proof track record anyone can audit. Its entire risk policy is <b>hashed and published on-chain</b>, so the limits it is bound by
         are verifiable, not merely claimed. You don't have to trust the numbers on this site; you can check them against the chain.
       </Section>
