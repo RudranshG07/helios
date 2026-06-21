@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { Wallet, JsonRpcProvider, formatEther, parseEther } from "ethers";
+import { Store } from "../src/state/store.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const BASE_CONFIG = resolve(ROOT, "config.json");
@@ -16,6 +17,35 @@ const ENGINE_ADDR = "127.0.0.1:8081";
 
 const mainnetChain = { chainId: 56, twakChain: "smartchain", erc8004Chain: "bsc", rpcUrls: ["https://bsc-dataseed.bnbchain.org", "https://bsc-dataseed1.defibit.io"], confirmations: 1, gasBumpPct: 12, txTimeoutSeconds: 90 };
 const testnetChain = { chainId: 97, twakChain: "smartchain-testnet", erc8004Chain: "bsctestnet", rpcUrls: ["https://data-seed-prebsc-1-s1.bnbchain.org:8545"], confirmations: 1, gasBumpPct: 12, txTimeoutSeconds: 90 };
+
+const SHOWCASE = {
+  wallet: "0x3864b8A47B187fF2829BFf2f74D772811F727Cf7",
+  agentId: "139782",
+  registered: true,
+  deadline: "2026-06-25T00:00:00.000Z",
+  registerTx: "0x9348e927430a6bf269f3f7afda3c4a4c9d0291656937699bcc02ed7f116941a6",
+  identityTx: "0x905e74fde4c446bb873df4dabeff40d8e450e93ff415c3968d515f158e110b3d",
+  fundTx: "0xeae3774af67bb6c99d9f2baf5720382a8987421385e07c72938608a71606d17e",
+};
+
+function showcase(): Record<string, unknown> {
+  let metrics: Record<string, unknown> | null = null;
+  let equityHistory: { ts: number; equityUsd: number }[] = [];
+  let positions: { token: string; qtyBase: number; markPxUsd: number }[] = [];
+  try {
+    const dbPath = process.env.HELIOS_DB ?? resolve(DATA, "helios.db");
+    if (existsSync(dbPath)) {
+      const cfg = JSON.parse(readFileSync(BASE_CONFIG, "utf8"));
+      const store = new Store(dbPath, cfg.risk.stableAsset);
+      metrics = store.metrics() as unknown as Record<string, unknown>;
+      equityHistory = store.getEquityHistory(200);
+      positions = store.getPortfolio().positions.map((p) => ({ token: p.token, qtyBase: p.qtyBase, markPxUsd: p.markPxUsd }));
+    }
+  } catch {
+    metrics = null;
+  }
+  return { ...SHOWCASE, live: metrics !== null, metrics, equityHistory, positions };
+}
 
 interface User {
   id: string;
@@ -175,6 +205,8 @@ const server = createServer(async (req, res) => {
       const u = connect(address);
       return json(res, 200, { userId: u.id, walletAddress: u.walletAddress, owner: u.owner });
     }
+
+    if (url === "/api/showcase" && req.method === "GET") return json(res, 200, showcase());
 
     if (url.startsWith("/api/")) {
       const u = currentUser(req);

@@ -75,15 +75,14 @@ export function Dashboard({ initial, onStopped }: { initial: AgentState | null; 
         <Metric label="Trades" value={m ? String(m.tradeCount) : "—"} />
       </div>
 
-      <div className="grid2" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <h3>Price {state?.bestToken ? `· ${state.bestToken}` : ""}</h3>
-          <CandleChart token={state?.holding?.[0] ?? state?.bestToken} />
-        </div>
-        <div className="card">
-          <h3>Equity curve {state?.holding?.length ? `· holding ${state.holding.join(", ")}` : "· in stable"}</h3>
-          <EquityChart points={state?.equityHistory ?? []} />
-        </div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3>Price {state?.bestToken ? `· ${state.bestToken}` : ""}</h3>
+        <CandleChart token={state?.holding?.[0] ?? state?.bestToken} />
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3>Equity curve {state?.holding?.length ? `· holding ${state.holding.join(", ")}` : "· in stable"}</h3>
+        <EquityChart points={state?.equityHistory ?? []} />
       </div>
 
       <div className="grid2" style={{ marginBottom: 16 }}>

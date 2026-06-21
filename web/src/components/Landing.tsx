@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Check, ArrowRight, Menu, X, Cpu, Shuffle, Gauge, ShieldCheck, Fingerprint, FileCheck2 } from "lucide-react";
+import { HackathonLive } from "./HackathonLive.tsx";
 
 const VIDEO_A = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260601_110537_3a579fa0-7bbc-4d94-9d25-0e816c7840f5.mp4";
-const LINKS = ["How it works", "Agent", "Security", "Docs"];
+const LINKS: { label: string; target: string }[] = [
+  { label: "Performance", target: "#performance" },
+  { label: "Agent", target: "#features" },
+  { label: "How it works", target: "#how" },
+  { label: "Docs", target: "docs" },
+];
 const OPTIONS = ["Maximum return", "Capital preservation", "Steady growth", "My own rules"];
 const ACCENT = "#6ee7b7";
 
@@ -112,7 +118,7 @@ export function Landing({ onStart, onDocs }: { onStart: (services?: string[]) =>
         </div>
         <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
           {LINKS.map((l) => (
-            <a key={l} href="#" onClick={(e) => { e.preventDefault(); onDocs(); }} className="transition-colors hover:text-white">{l}</a>
+            <a key={l.label} href="#" onClick={(e) => { e.preventDefault(); if (l.target === "docs") onDocs(); else document.querySelector(l.target)?.scrollIntoView({ behavior: "smooth" }); }} className="transition-colors hover:text-white">{l.label}</a>
           ))}
         </nav>
         <div className="hidden md:flex items-center gap-3">
@@ -134,7 +140,7 @@ export function Landing({ onStart, onDocs }: { onStart: (services?: string[]) =>
               <div className="my-6 h-px bg-white/10" />
               <div className="flex flex-col gap-1">
                 {LINKS.map((l) => (
-                  <a key={l} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); onDocs(); }} className="rounded-xl px-3 py-2.5 text-[1.1rem] text-white/90 transition hover:bg-white/10">{l}</a>
+                  <a key={l.label} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); if (l.target === "docs") onDocs(); else document.querySelector(l.target)?.scrollIntoView({ behavior: "smooth" }); }} className="rounded-xl px-3 py-2.5 text-[1.1rem] text-white/90 transition hover:bg-white/10">{l.label}</a>
                 ))}
               </div>
               <button onClick={() => onStart()} className="mt-auto w-full rounded-full bg-white py-3.5 text-[0.95rem] font-semibold text-[#0a0b0d]">Launch agent</button>
@@ -198,6 +204,9 @@ export function Landing({ onStart, onDocs }: { onStart: (services?: string[]) =>
         </div>
       </section>
 
+      {/* LIVE HACKATHON PERFORMANCE — right below the hero */}
+      <HackathonLive />
+
       {/* MEET THE AGENT — detailed */}
       <section className="relative z-10 mx-auto max-w-5xl px-6 py-24 md:py-32">
         <motion.p {...reveal} custom={0} className="text-sm uppercase tracking-[0.25em]" style={{ color: ACCENT }}>The agent</motion.p>
@@ -248,7 +257,7 @@ export function Landing({ onStart, onDocs }: { onStart: (services?: string[]) =>
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="relative z-10 mx-auto max-w-6xl px-6 py-24">
+      <section id="how" className="relative z-10 mx-auto max-w-6xl px-6 py-24">
         <motion.h2 {...reveal} className="mb-12 text-3xl md:text-4xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
           The loop, every cycle
         </motion.h2>

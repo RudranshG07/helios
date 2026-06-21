@@ -3,8 +3,8 @@ export function EquityChart({ points }: { points: { ts: number; equityUsd: numbe
     return <div className="muted" style={{ padding: "56px 0", textAlign: "center", fontSize: 13 }}>building equity history…</div>;
   }
   const w = 800;
-  const h = 180;
-  const pad = 10;
+  const h = 300;
+  const pad = 12;
   const vals = points.map((p) => p.equityUsd);
   const min = Math.min(...vals);
   const max = Math.max(...vals);
@@ -17,7 +17,7 @@ export function EquityChart({ points }: { points: { ts: number; equityUsd: numbe
   const color = up ? "var(--green)" : "var(--red)";
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: "100%", height: 180, display: "block" }}>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: "100%", height: 300, display: "block" }}>
       <defs>
         <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.22" />

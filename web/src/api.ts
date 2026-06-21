@@ -27,6 +27,20 @@ export interface AgentState {
   holding?: string[];
 }
 
+export interface Showcase {
+  wallet: string;
+  agentId: string;
+  registered: boolean;
+  deadline: string;
+  registerTx: string;
+  identityTx: string;
+  fundTx: string;
+  live: boolean;
+  metrics: AgentState["metrics"] | null;
+  equityHistory: { ts: number; equityUsd: number }[];
+  positions: { token: string; qtyBase: number; markPxUsd: number }[];
+}
+
 export interface RiskRules {
   maxExposurePct: number;
   maxPositionPctPerToken: number;
@@ -73,6 +87,7 @@ export const api = {
   },
   balance: () => jsonFetch<{ address: string; bnb: number; unreachable?: boolean }>("/api/balance"),
   chat: (message: string) => jsonFetch<{ reply: string }>("/api/chat", { method: "POST", body: JSON.stringify({ message }) }),
+  showcase: () => fetch(API_BASE + "/api/showcase").then((r) => r.json() as Promise<Showcase>),
   withdraw: (to: string) => jsonFetch<{ ok: boolean; txHash?: string; amountBnb?: number; reason?: string }>("/api/withdraw", { method: "POST", body: JSON.stringify({ to }) }),
   state: () => jsonFetch<AgentState>("/api/state"),
   config: () => jsonFetch<Record<string, unknown>>("/api/config"),

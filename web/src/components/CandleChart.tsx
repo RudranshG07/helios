@@ -7,15 +7,20 @@ interface Candle {
   c: number;
 }
 
+const INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1d"] as const;
+type Interval = (typeof INTERVALS)[number];
+
 export function CandleChart({ token }: { token?: string }) {
   const symbol = `${(token ?? "ETH").toUpperCase()}USDT`;
+  const [interval, setInterval] = useState<Interval>("1h");
   const [candles, setCandles] = useState<Candle[]>([]);
   const [err, setErr] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setErr(false);
-    fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=64`)
+    setCandles([]);
+    fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=90`)
       .then((r) => r.json())
       .then((rows: unknown[][]) => {
         if (!alive) return;
@@ -25,14 +30,24 @@ export function CandleChart({ token }: { token?: string }) {
     return () => {
       alive = false;
     };
-  }, [symbol]);
+  }, [symbol, interval]);
 
-  if (err) return <div className="muted" style={{ padding: "56px 0", textAlign: "center", fontSize: 13 }}>price feed unavailable</div>;
-  if (candles.length < 2) return <div className="muted" style={{ padding: "56px 0", textAlign: "center", fontSize: 13 }}>loading {symbol}…</div>;
+  const tabs = (
+    <div className="candle-tabs">
+      {INTERVALS.map((iv) => (
+        <button key={iv} className={`candle-tab ${iv === interval ? "active" : ""}`} onClick={() => setInterval(iv)}>{iv}</button>
+      ))}
+    </div>
+  );
+
+  const H = 360;
+
+  if (err) return (<div>{tabs}<div className="muted" style={{ padding: "150px 0", textAlign: "center", fontSize: 13 }}>price feed unavailable</div></div>);
+  if (candles.length < 2) return (<div>{tabs}<div className="muted" style={{ padding: "150px 0", textAlign: "center", fontSize: 13 }}>loading {symbol}…</div></div>);
 
   const w = 800;
-  const h = 220;
-  const pad = 10;
+  const h = H;
+  const pad = 12;
   const hi = Math.max(...candles.map((c) => c.h));
   const lo = Math.min(...candles.map((c) => c.l));
   const range = hi - lo || 1;
@@ -41,14 +56,18 @@ export function CandleChart({ token }: { token?: string }) {
   const last = candles[candles.length - 1];
   const first = candles[0];
   const up = last.c >= first.c;
+  const chg = ((last.c - first.c) / first.c) * 100;
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-        <span style={{ fontFamily: "var(--font-heading)", fontSize: 18 }}>{symbol}</span>
-        <span style={{ fontFamily: "var(--font-mono)", color: up ? "var(--green)" : "var(--red)" }}>${last.c.toLocaleString()}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span style={{ fontFamily: "var(--font-heading)", fontSize: 20 }}>{symbol}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 15, color: up ? "var(--green)" : "var(--red)" }}>${last.c.toLocaleString()} ({chg >= 0 ? "+" : ""}{chg.toFixed(2)}%)</span>
+        </div>
+        {tabs}
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: "100%", height: 220, display: "block" }}>
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: "100%", height: H, display: "block" }}>
         {candles.map((c, i) => {
           const x = pad + i * cw + cw / 2;
           const green = c.c >= c.o;
@@ -58,7 +77,7 @@ export function CandleChart({ token }: { token?: string }) {
           return (
             <g key={i}>
               <line x1={x} x2={x} y1={y(c.h)} y2={y(c.l)} stroke={color} strokeWidth="1" vectorEffect="non-scaling-stroke" />
-              <rect x={x - cw * 0.3} y={bodyTop} width={cw * 0.6} height={Math.max(1, bodyBot - bodyTop)} fill={color} />
+              <rect x={x - cw * 0.32} y={bodyTop} width={cw * 0.64} height={Math.max(1, bodyBot - bodyTop)} fill={color} />
             </g>
           );
         })}

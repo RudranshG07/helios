@@ -39,6 +39,7 @@ async function main(): Promise<void> {
   const store = new Store(process.env.HELIOS_DB ?? "data/helios.db", cfg.risk.stableAsset);
   const seedUsd = cfg.mode === "paper" ? cfg.startingCapitalUsd : await readOnchainStableUsd(cfg);
   store.initialize(seedUsd);
+  if (cfg.mode !== "paper") store.reseedStable(seedUsd);
 
   const sensor = createSensor(cfg);
   const executor = createExecutor(cfg);

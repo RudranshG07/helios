@@ -38,6 +38,14 @@ export class Store {
     this.setNumber("initialized", 1);
   }
 
+  reseedStable(stableUsd: number): void {
+    if ((this.getNumber("tradeCount") ?? 0) > 0) return;
+    this.upsertPosition(this.stable, stableUsd, 1, 1);
+    this.setNumber("startingCapitalUsd", stableUsd);
+    this.setNumber("highWaterUsd", stableUsd);
+    this.setNumber("maxDrawdownPct", 0);
+  }
+
   updateMaxDrawdown(): void {
     const p = this.getPortfolio();
     if (p.highWaterUsd <= 0) return;
