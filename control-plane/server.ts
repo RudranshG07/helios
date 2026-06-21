@@ -121,9 +121,35 @@ async function showcase(): Promise<Record<string, unknown>> {
       };
     }
   }
+  if (equityHistory.length < 2) equityHistory = loadShowcaseEquity();
   const data = { ...SHOWCASE, live, metrics, equityHistory, positions };
   scCache = { ts: Date.now(), data };
   return data;
+}
+
+const EQUITY_FILE = resolve(DATA, "showcase-equity.json");
+function loadShowcaseEquity(): { ts: number; equityUsd: number }[] {
+  try {
+    return existsSync(EQUITY_FILE) ? (JSON.parse(readFileSync(EQUITY_FILE, "utf8")) as { ts: number; equityUsd: number }[]) : [];
+  } catch {
+    return [];
+  }
+}
+function saveShowcaseEquity(arr: { ts: number; equityUsd: number }[]): void {
+  try {
+    writeFileSync(EQUITY_FILE, JSON.stringify(arr.slice(-720)));
+  } catch {
+    /* ignore */
+  }
+}
+async function sampleShowcaseEquity(): Promise<void> {
+  const oc = await onchainPortfolio(SHOWCASE.wallet);
+  if (!oc) return;
+  const arr = loadShowcaseEquity();
+  const now = Math.floor(Date.now() / 1000);
+  if (arr.length && now - arr[arr.length - 1].ts < 60) return;
+  arr.push({ ts: now, equityUsd: Number(oc.equityUsd.toFixed(4)) });
+  saveShowcaseEquity(arr);
 }
 
 interface User {
@@ -386,3 +412,7 @@ process.on("SIGTERM", () => {
 });
 
 server.listen(PORT, () => console.log(`control plane (multi-tenant) on http://127.0.0.1:${PORT}`));
+
+// sample the on-chain equity into a persisted curve so the showcase chart renders on hosted backends
+void sampleShowcaseEquity();
+setInterval(() => void sampleShowcaseEquity(), 120_000);
