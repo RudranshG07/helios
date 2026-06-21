@@ -6,12 +6,14 @@ export function EquityChart({ points, baseline }: { points: { ts: number; equity
   const h = 300;
   const pad = 12;
   const vals = points.map((p) => p.equityUsd);
+  // the curve's reference "start" is its first plotted value (or an explicit baseline)
+  const base = baseline ?? vals[0];
   const dataMin = Math.min(...vals);
   const dataMax = Math.max(...vals);
-  // anchor the y-range to include the starting capital, so the line reads as
-  // above (profit) or below (loss) the deposit baseline.
-  const lo0 = baseline != null ? Math.min(dataMin, baseline) : dataMin;
-  const hi0 = baseline != null ? Math.max(dataMax, baseline) : dataMax;
+  // anchor the y-range to include the start, so the line reads as above (profit)
+  // or below (loss) the starting line.
+  const lo0 = Math.min(dataMin, base);
+  const hi0 = Math.max(dataMax, base);
   const mid = (lo0 + hi0) / 2;
   const half = Math.max((hi0 - lo0) / 2, mid * 0.0015) * 1.3 || 1;
   const min = mid - half;
@@ -21,11 +23,11 @@ export function EquityChart({ points, baseline }: { points: { ts: number; equity
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.equityUsd).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1).toFixed(1)},${h - pad} L${x(0).toFixed(1)},${h - pad} Z`;
   const last = vals[vals.length - 1];
-  const ref = baseline ?? vals[0];
+  const ref = base;
   const up = last >= ref;
   const color = up ? "var(--green)" : "var(--red)";
   const chgPct = ref > 0 ? ((last - ref) / ref) * 100 : 0;
-  const baseY = baseline != null ? y(baseline) : null;
+  const baseY = y(ref);
 
   return (
     <div style={{ position: "relative" }}>
@@ -36,15 +38,13 @@ export function EquityChart({ points, baseline }: { points: { ts: number; equity
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
-        {baseY != null && <line x1={pad} x2={w - pad} y1={baseY} y2={baseY} stroke="var(--muted)" strokeWidth="1" strokeDasharray="5 5" opacity="0.5" vectorEffect="non-scaling-stroke" />}
+        <line x1={pad} x2={w - pad} y1={baseY} y2={baseY} stroke="var(--muted)" strokeWidth="1" strokeDasharray="5 5" opacity="0.5" vectorEffect="non-scaling-stroke" />
         <path d={area} fill="url(#equityGrad)" />
         <path d={line} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
       </svg>
-      {baseline != null && (
-        <div style={{ position: "absolute", left: 10, top: `${(baseY! / h) * 100}%`, transform: "translateY(-50%)", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>
-          start ${baseline.toFixed(2)}
-        </div>
-      )}
+      <div style={{ position: "absolute", left: 10, top: `${(baseY / h) * 100}%`, transform: "translateY(-50%)", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>
+        start ${ref.toFixed(2)}
+      </div>
       <div style={{ position: "absolute", top: 6, right: 10, fontFamily: "var(--font-mono)", fontSize: 12, color: up ? "var(--green)" : "var(--red)" }}>
         {chgPct >= 0 ? "+" : ""}{chgPct.toFixed(2)}% · ${last.toFixed(2)}
       </div>

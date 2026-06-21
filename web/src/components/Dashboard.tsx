@@ -82,7 +82,7 @@ export function Dashboard({ initial, onStopped }: { initial: AgentState | null; 
 
       <div className="card" style={{ marginBottom: 16 }}>
         <h3>Equity curve {state?.holding?.length ? `· holding ${state.holding.join(", ")}` : "· in stable"}</h3>
-        <EquityChart points={state?.equityHistory ?? []} baseline={m?.startingCapitalUsd} />
+        <EquityChart points={state?.equityHistory ?? []} />
       </div>
 
       <div className="grid2" style={{ marginBottom: 16 }}>
