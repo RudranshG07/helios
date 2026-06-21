@@ -51,7 +51,7 @@ export interface RiskRules {
 }
 
 const USER_KEY = "helios_user";
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "").replace(/\/+$/, "");
 
 export const getUserId = (): string | null => localStorage.getItem(USER_KEY);
 export const clearUser = (): void => localStorage.removeItem(USER_KEY);

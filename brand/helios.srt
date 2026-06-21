@@ -1,0 +1,77 @@
+1
+00:00:00,000 --> 00:00:06,000
+Helios — let your capital trade itself.
+
+2
+00:00:06,000 --> 00:00:14,000
+An autonomous, self-custody trading agent
+on BNB Chain. You choose what it optimizes for.
+
+3
+00:00:14,000 --> 00:00:22,000
+It's built to survive markets,
+not just predict them.
+
+4
+00:00:22,000 --> 00:00:30,000
+Deterministic decisions — not an LLM gambling.
++8.4% in backtests while the market fell 22%.
+
+5
+00:00:30,000 --> 00:00:38,000
+Powered by CoinMarketCap, Trust Wallet, and BNB Chain.
+Your agent. Your rules. On-chain.
+
+6
+00:00:38,000 --> 00:00:50,000
+Every trade is cleared by an isolated risk engine —
+drawdown breaker, exposure caps, slippage, kill-switch.
+
+7
+00:00:50,000 --> 00:00:58,000
+Self-custody: connect your own wallet.
+Keys never leave you; funds can only return to you.
+
+8
+00:00:58,000 --> 00:01:08,000
+Set your risk rules with simple sliders —
+exposure, drawdown stop, trade size, cooldown.
+
+9
+00:01:08,000 --> 00:01:16,000
+Fund the agent wallet, then launch.
+Withdraw anytime.
+
+10
+00:01:16,000 --> 00:01:28,000
+A live dashboard — price candles, equity curve,
+positions, and every decision in real time.
+
+11
+00:01:28,000 --> 00:01:40,000
+Now watch it run live on mainnet.
+
+12
+00:01:40,000 --> 00:01:47,000
+It reads CoinMarketCap and ranks
+every token by conviction.
+
+13
+00:01:47,000 --> 00:01:54,000
+It buys only the strongest signal — UNI —
+approved by the risk engine.
+
+14
+00:01:54,000 --> 00:02:00,000
+The swap is signed from your wallet
+and confirmed on BNB Chain.
+
+15
+00:02:00,000 --> 00:02:06,000
+The decision and risk policy are written
+on-chain to an ERC-8004 identity.
+
+16
+00:02:06,000 --> 00:02:13,000
+Don't trust it — verify it on BscScan.
+Deterministic. Self-custody. Proven on-chain.
